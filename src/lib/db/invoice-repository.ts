@@ -1,104 +1,75 @@
 import type { Invoice, InvoiceStatus } from '$lib/types/invoice';
-import { db } from './database';
+import { userCol } from './database';
+import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 
-// ==================== 請求書関連 ====================
-
-/**
- * 全請求書の取得（発行日降順）
- */
 export async function getAllInvoices(): Promise<Invoice[]> {
-	return db.invoices.orderBy('issueDate').reverse().toArray();
+	const q = query(userCol('invoices'), orderBy('issueDate', 'desc'));
+	const snap = await getDocs(q);
+	return snap.docs.map((d) => d.data() as Invoice);
 }
 
-/**
- * 請求書の取得（ID指定）
- */
 export async function getInvoiceById(id: string): Promise<Invoice | undefined> {
-	return db.invoices.get(id);
+	const snap = await getDoc(doc(userCol('invoices'), id));
+	return snap.exists() ? (snap.data() as Invoice) : undefined;
 }
 
-/**
- * 年度別請求書の取得
- */
 export async function getInvoicesByYear(year: number): Promise<Invoice[]> {
 	const startDate = `${year}-01-01`;
 	const endDate = `${year}-12-31`;
-
-	return db.invoices.where('issueDate').between(startDate, endDate, true, true).reverse().toArray();
+	const q = query(
+		userCol('invoices'),
+		where('issueDate', '>=', startDate),
+		where('issueDate', '<=', endDate),
+		orderBy('issueDate', 'desc')
+	);
+	const snap = await getDocs(q);
+	return snap.docs.map((d) => d.data() as Invoice);
 }
 
-/**
- * 取引先別請求書の取得
- */
 export async function getInvoicesByVendor(vendorId: string): Promise<Invoice[]> {
-	return db.invoices.where('vendorId').equals(vendorId).reverse().toArray();
+	const q = query(userCol('invoices'), where('vendorId', '==', vendorId), orderBy('issueDate', 'desc'));
+	const snap = await getDocs(q);
+	return snap.docs.map((d) => d.data() as Invoice);
 }
 
-/**
- * ステータス別請求書の取得
- */
 export async function getInvoicesByStatus(status: InvoiceStatus): Promise<Invoice[]> {
-	return db.invoices.where('status').equals(status).reverse().toArray();
+	const q = query(userCol('invoices'), where('status', '==', status), orderBy('issueDate', 'desc'));
+	const snap = await getDocs(q);
+	return snap.docs.map((d) => d.data() as Invoice);
 }
 
-/**
- * 請求書の追加
- */
 export async function addInvoice(
 	invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<string> {
 	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
-
-	await db.invoices.add({
-		...invoice,
-		id,
-		createdAt: now,
-		updatedAt: now
-	});
-
+	await setDoc(doc(userCol('invoices'), id), { ...invoice, id, createdAt: now, updatedAt: now });
 	return id;
 }
 
-/**
- * 請求書の更新
- */
 export async function updateInvoice(
 	id: string,
 	updates: Partial<Omit<Invoice, 'id' | 'createdAt'>>
 ): Promise<void> {
-	await db.invoices.update(id, {
+	await updateDoc(doc(userCol('invoices'), id), {
 		...updates,
 		updatedAt: new Date().toISOString()
 	});
 }
 
-/**
- * 請求書の削除
- */
 export async function deleteInvoice(id: string): Promise<void> {
-	await db.invoices.delete(id);
+	await deleteDoc(doc(userCol('invoices'), id));
 }
 
-/**
- * 次の請求書番号を生成（参考用）
- * 形式: INV-{YYYY}-{NNNN}
- */
 export async function generateNextInvoiceNumber(year?: number): Promise<string> {
 	const targetYear = year ?? new Date().getFullYear();
 	const prefix = `INV-${targetYear}-`;
-
-	const invoices = await db.invoices.toArray();
+	const invoices = await getAllInvoices();
 	const yearInvoices = invoices.filter((inv) => inv.invoiceNumber.startsWith(prefix));
-
 	let maxNumber = 0;
 	for (const inv of yearInvoices) {
-		const numPart = inv.invoiceNumber.replace(prefix, '');
-		const num = parseInt(numPart, 10);
-		if (!isNaN(num) && num > maxNumber) {
-			maxNumber = num;
-		}
+		const num = parseInt(inv.invoiceNumber.replace(prefix, ''), 10);
+		if (!isNaN(num) && num > maxNumber) maxNumber = num;
 	}
-
 	return `${prefix}${String(maxNumber + 1).padStart(4, '0')}`;
 }

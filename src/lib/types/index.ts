@@ -140,7 +140,7 @@ export type EvidenceStatus = 'none' | 'paper' | 'digital';
 /**
  * 証憑の保存タイプ
  */
-export type StorageType = 'filesystem' | 'indexeddb';
+export type StorageType = 'filesystem' | 'indexeddb' | 'firebase';
 
 /**
  * 書類の種類

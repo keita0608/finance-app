@@ -1,176 +1,126 @@
 import type { JournalEntry, TaxCategory } from '$lib/types';
-import { db } from './database';
+import { userCol } from './database';
+import { getUid } from '$lib/stores/auth.svelte';
+import { firestore, storage } from '$lib/firebase';
+import {
+	doc,
+	getDoc,
+	getDocs,
+	setDoc,
+	updateDoc,
+	deleteDoc,
+	query,
+	where,
+	orderBy,
+	collection
+} from 'firebase/firestore';
+import { ref, deleteObject, listAll } from 'firebase/storage';
 import { saveVendor } from './vendor-repository';
 
-// ==================== 仕訳関連 ====================
-
-/**
- * 仕訳の取得（年度別、日付降順）
- */
 export async function getJournalsByYear(year: number): Promise<JournalEntry[]> {
 	const startDate = `${year}-01-01`;
 	const endDate = `${year}-12-31`;
-
-	const journals = await db.journals
-		.where('date')
-		.between(startDate, endDate, true, true)
-		.toArray();
-
-	// 日付降順（新しい順）でソート、同日内は作成日時降順
-	// createdAtが欠けている場合に備えて防御的に比較
-	return journals.sort((a, b) => {
-		const dateCompare = (b.date || '').localeCompare(a.date || '');
-		if (dateCompare !== 0) return dateCompare;
-		const aCreatedAt = a.createdAt || a.updatedAt || '';
-		const bCreatedAt = b.createdAt || b.updatedAt || '';
-		return bCreatedAt.localeCompare(aCreatedAt);
-	});
+	const q = query(
+		userCol('journals'),
+		where('date', '>=', startDate),
+		where('date', '<=', endDate),
+		orderBy('date', 'desc')
+	);
+	const snap = await getDocs(q);
+	return snap.docs
+		.map((d) => d.data() as JournalEntry)
+		.sort((a, b) => {
+			const dateCompare = (b.date || '').localeCompare(a.date || '');
+			if (dateCompare !== 0) return dateCompare;
+			return (b.createdAt || '').localeCompare(a.createdAt || '');
+		});
 }
 
-/**
- * 全年度の仕訳を取得（日付降順）
- * 検索時の全年度横断検索用
- */
 export async function getAllJournals(): Promise<JournalEntry[]> {
-	const journals = await db.journals.toArray();
-
-	// 日付降順（新しい順）でソート、同日内は作成日時降順
-	return journals.sort((a, b) => {
-		const dateCompare = (b.date || '').localeCompare(a.date || '');
-		if (dateCompare !== 0) return dateCompare;
-		const aCreatedAt = a.createdAt || a.updatedAt || '';
-		const bCreatedAt = b.createdAt || b.updatedAt || '';
-		return bCreatedAt.localeCompare(aCreatedAt);
-	});
+	const q = query(userCol('journals'), orderBy('date', 'desc'));
+	const snap = await getDocs(q);
+	return snap.docs
+		.map((d) => d.data() as JournalEntry)
+		.sort((a, b) => {
+			const dateCompare = (b.date || '').localeCompare(a.date || '');
+			if (dateCompare !== 0) return dateCompare;
+			return (b.createdAt || '').localeCompare(a.createdAt || '');
+		});
 }
 
-/**
- * 利用可能な年度の取得（仕訳データから抽出）
- * 現在年度は常に含める（新規仕訳追加のため）
- */
 export async function getAvailableYears(): Promise<number[]> {
 	const currentYear = new Date().getFullYear();
-	const journals = await db.journals.toArray();
-
-	// 現在年度は常に含める
+	const snap = await getDocs(userCol('journals'));
 	const years = new Set<number>([currentYear]);
-
-	// 仕訳の日付から年度を抽出
-	for (const journal of journals) {
-		const year = parseInt(journal.date.substring(0, 4), 10);
-		if (!isNaN(year)) {
-			years.add(year);
-		}
+	for (const d of snap.docs) {
+		const year = parseInt((d.data() as JournalEntry).date.substring(0, 4), 10);
+		if (!isNaN(year)) years.add(year);
 	}
-
-	// 降順（新しい年度が先）でソート
 	return Array.from(years).sort((a, b) => b - a);
 }
 
-/**
- * 仕訳の取得（ID指定）
- */
 export async function getJournalById(id: string): Promise<JournalEntry | undefined> {
-	return db.journals.get(id);
+	const snap = await getDoc(doc(userCol('journals'), id));
+	return snap.exists() ? (snap.data() as JournalEntry) : undefined;
 }
 
-/**
- * 仕訳の追加
- */
 export async function addJournal(
 	journal: Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<string> {
 	const now = new Date().toISOString();
 	const id = crypto.randomUUID();
-
-	await db.journals.add({
-		...journal,
-		id,
-		createdAt: now,
-		updatedAt: now
-	});
-
-	// 取引先を自動登録
-	if (journal.vendor) {
-		await saveVendor(journal.vendor);
-	}
-
+	await setDoc(doc(userCol('journals'), id), { ...journal, id, createdAt: now, updatedAt: now });
+	if (journal.vendor) await saveVendor(journal.vendor);
 	return id;
 }
 
-/**
- * 仕訳の更新
- * 注意: 取引先の自動登録は行わない（blurタイミングで別途saveVendorを呼ぶ）
- */
 export async function updateJournal(
 	id: string,
 	updates: Partial<Omit<JournalEntry, 'id' | 'createdAt'>>
 ): Promise<void> {
-	const now = new Date().toISOString();
-
-	await db.journals.update(id, {
-		...updates,
-		updatedAt: now
+	const plain = JSON.parse(JSON.stringify(updates));
+	await updateDoc(doc(userCol('journals'), id), {
+		...plain,
+		updatedAt: new Date().toISOString()
 	});
 }
 
-/**
- * 仕訳の削除（添付ファイルも削除）
- */
 export async function deleteJournal(
 	id: string,
-	directoryHandle?: FileSystemDirectoryHandle | null
+	_directoryHandle?: FileSystemDirectoryHandle | null
 ): Promise<void> {
-	// 仕訳を取得
-	const journal = await db.journals.get(id);
-	if (!journal) {
-		return; // 既に削除済み
-	}
-
-	// 添付ファイルをファイルシステムから削除
-	if (directoryHandle && journal.attachments.length > 0) {
-		const { deleteFileFromDirectory } = await import('$lib/utils/filesystem');
-		for (const attachment of journal.attachments) {
-			if (attachment.storageType === 'filesystem' && attachment.filePath) {
-				try {
-					await deleteFileFromDirectory(directoryHandle, attachment.filePath);
-				} catch (error) {
-					console.warn(`添付ファイルの削除に失敗: ${attachment.filePath}`, error);
-				}
-			}
+	const journal = await getJournalById(id);
+	if (!journal) return;
+	// Firebase Storage の添付ファイルを削除
+	const uid = getUid();
+	for (const att of journal.attachments) {
+		if (att.storageType === 'firebase') {
+			try {
+				const fileRef = ref(storage, `users/${uid}/attachments/${att.id}`);
+				await deleteObject(fileRef);
+			} catch {}
 		}
 	}
-
-	// 仕訳を削除
-	await db.journals.delete(id);
+	await deleteDoc(doc(userCol('journals'), id));
 }
 
-/**
- * 特定の勘定科目を使用している仕訳行の数を取得
- */
 export async function countJournalLinesByAccountCode(accountCode: string): Promise<number> {
-	const journals = await db.journals.toArray();
+	const journals = await getAllJournals();
 	let count = 0;
-	for (const journal of journals) {
-		for (const line of journal.lines) {
-			if (line.accountCode === accountCode) {
-				count++;
-			}
+	for (const j of journals) {
+		for (const line of j.lines) {
+			if (line.accountCode === accountCode) count++;
 		}
 	}
 	return count;
 }
 
-/**
- * 特定の勘定科目を使用している仕訳行の消費税区分を一括更新
- */
 export async function updateTaxCategoryByAccountCode(
 	accountCode: string,
 	newTaxCategory: TaxCategory
 ): Promise<number> {
-	const journals = await db.journals.toArray();
+	const journals = await getAllJournals();
 	let updatedCount = 0;
-
 	for (const journal of journals) {
 		let hasUpdate = false;
 		const updatedLines = journal.lines.map((line) => {
@@ -181,26 +131,19 @@ export async function updateTaxCategoryByAccountCode(
 			}
 			return line;
 		});
-
 		if (hasUpdate) {
-			await db.journals.update(journal.id, {
+			await updateDoc(doc(userCol('journals'), journal.id), {
 				lines: updatedLines,
 				updatedAt: new Date().toISOString()
 			});
 		}
 	}
-
 	return updatedCount;
 }
 
-/**
- * 年度の全データを削除
- * 仕訳・添付ファイル・請求書を削除。
- * ローカルファイルシステムの証憑も削除可能（directoryHandle が必要）。
- */
 export async function deleteYearData(
 	year: number,
-	directoryHandle?: FileSystemDirectoryHandle | null
+	_directoryHandle?: FileSystemDirectoryHandle | null
 ): Promise<{
 	journalCount: number;
 	attachmentCount: number;
@@ -208,71 +151,41 @@ export async function deleteYearData(
 	localFilesDeleted: number;
 	localFilesFailed: number;
 }> {
-	// 対象年度の仕訳を取得
-	const startDate = `${year}-01-01`;
-	const endDate = `${year}-12-31`;
-
-	const journals = await db.journals
-		.where('date')
-		.between(startDate, endDate, true, true)
-		.toArray();
-
+	const uid = getUid();
+	const journals = await getJournalsByYear(year);
 	let attachmentCount = 0;
-	let localFilesDeleted = 0;
-	let localFilesFailed = 0;
 
-	// 仕訳ごとに添付ファイルを削除
 	for (const journal of journals) {
-		for (const attachment of journal.attachments) {
-			// IndexedDB の Blob を削除
-			await db.attachments.delete(attachment.id);
-			attachmentCount++;
-
-			// ローカルファイルの削除（ハンドルがある場合）
-			if (directoryHandle && attachment.filePath) {
+		for (const att of journal.attachments) {
+			if (att.storageType === 'firebase') {
 				try {
-					// filePath は "evidences/YYYY/filename.pdf" 形式
-					const parts = attachment.filePath.split('/');
-					let currentDir = directoryHandle;
-					// ディレクトリを辿る（最後のパーツ以外）
-					for (let i = 0; i < parts.length - 1; i++) {
-						currentDir = await currentDir.getDirectoryHandle(parts[i]);
-					}
-					// ファイルを削除
-					await currentDir.removeEntry(parts[parts.length - 1]);
-					localFilesDeleted++;
-				} catch {
-					// ファイルが存在しない等のエラーは無視
-					localFilesFailed++;
-				}
+					await deleteObject(ref(storage, `users/${uid}/attachments/${att.id}`));
+				} catch {}
 			}
+			attachmentCount++;
 		}
+		await deleteDoc(doc(userCol('journals'), journal.id));
 	}
 
-	// 仕訳を削除
-	const journalIds = journals.map((j) => j.id);
-	await db.journals.bulkDelete(journalIds);
-
-	// 請求書を削除
-	const invoices = await db.invoices
-		.where('issueDate')
-		.between(startDate, endDate, true, true)
-		.toArray();
-	const invoiceIds = invoices.map((inv) => inv.id);
-	await db.invoices.bulkDelete(invoiceIds);
+	const startDate = `${year}-01-01`;
+	const endDate = `${year}-12-31`;
+	const invQ = query(
+		userCol('invoices'),
+		where('issueDate', '>=', startDate),
+		where('issueDate', '<=', endDate)
+	);
+	const invSnap = await getDocs(invQ);
+	for (const d of invSnap.docs) await deleteDoc(d.ref);
 
 	return {
 		journalCount: journals.length,
 		attachmentCount,
-		invoiceCount: invoices.length,
-		localFilesDeleted,
-		localFilesFailed
+		invoiceCount: invSnap.size,
+		localFilesDeleted: 0,
+		localFilesFailed: 0
 	};
 }
 
-/**
- * 空の仕訳を作成
- */
 export function createEmptyJournal(): Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'> {
 	return {
 		date: new Date().toISOString().slice(0, 10),
@@ -287,9 +200,6 @@ export function createEmptyJournal(): Omit<JournalEntry, 'id' | 'createdAt' | 'u
 	};
 }
 
-/**
- * 仕訳のバリデーション（借方合計 === 貸方合計、勘定科目選択済み）
- */
 export function validateJournal(journal: Pick<JournalEntry, 'lines'>): {
 	isValid: boolean;
 	debitTotal: number;
@@ -297,20 +207,14 @@ export function validateJournal(journal: Pick<JournalEntry, 'lines'>): {
 	hasEmptyAccounts: boolean;
 } {
 	const debitTotal = journal.lines
-		.filter((line) => line.type === 'debit')
-		.reduce((sum, line) => sum + line.amount, 0);
-
+		.filter((l) => l.type === 'debit')
+		.reduce((s, l) => s + l.amount, 0);
 	const creditTotal = journal.lines
-		.filter((line) => line.type === 'credit')
-		.reduce((sum, line) => sum + line.amount, 0);
-
-	// 勘定科目が選択されていない行があるかチェック
-	const hasEmptyAccounts = journal.lines.some((line) => !line.accountCode);
-
-	const isTotalValid = debitTotal === creditTotal && debitTotal > 0;
-
+		.filter((l) => l.type === 'credit')
+		.reduce((s, l) => s + l.amount, 0);
+	const hasEmptyAccounts = journal.lines.some((l) => !l.accountCode);
 	return {
-		isValid: isTotalValid && !hasEmptyAccounts,
+		isValid: debitTotal === creditTotal && debitTotal > 0 && !hasEmptyAccounts,
 		debitTotal,
 		creditTotal,
 		hasEmptyAccounts

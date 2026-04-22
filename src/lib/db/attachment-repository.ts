@@ -1,5 +1,7 @@
 import type { Account, Attachment, DocumentType } from '$lib/types';
-import { db } from './database';
+import { storage } from '$lib/firebase';
+import { getUid } from '$lib/stores/auth.svelte';
+import { ref, uploadBytes, getDownloadURL, deleteObject, getBlob } from 'firebase/storage';
 
 // ==================== 添付ファイル関連 ====================
 
@@ -162,24 +164,16 @@ export function suggestDocumentType(
 	}
 }
 
-/**
- * 全仕訳から使用中の添付ファイル名を収集
- * @param excludeAttachmentId 除外する添付ファイルID（自分自身のリネーム時）
- * @returns 使用中のファイル名のSet
- */
 export async function getUsedFileNames(excludeAttachmentId?: string): Promise<Set<string>> {
-	const journals = await db.journals.toArray();
+	const { getAllJournals } = await import('./journal-repository');
+	const journals = await getAllJournals();
 	const usedNames = new Set<string>();
-
 	for (const journal of journals) {
 		for (const attachment of journal.attachments) {
 			if (excludeAttachmentId && attachment.id === excludeAttachmentId) continue;
-			if (attachment.generatedName) {
-				usedNames.add(attachment.generatedName);
-			}
+			if (attachment.generatedName) usedNames.add(attachment.generatedName);
 		}
 	}
-
 	return usedNames;
 }
 
@@ -230,147 +224,94 @@ export interface AttachmentParams {
 	vendor: string;
 }
 
-/**
- * 仕訳に添付ファイルを追加（ハイブリッド保存）
- */
 export async function addAttachmentToJournal(
 	journalId: string,
 	params: AttachmentParams,
-	directoryHandle?: FileSystemDirectoryHandle | null
+	_directoryHandle?: FileSystemDirectoryHandle | null
 ): Promise<Attachment> {
-	const journal = await db.journals.get(journalId);
-	if (!journal) {
-		throw new Error('仕訳が見つかりません');
-	}
+	const { getJournalById, updateJournal } = await import('./journal-repository');
+	const journal = await getJournalById(journalId);
+	if (!journal) throw new Error('仕訳が見つかりません');
 
-	const { file, documentDate, documentType, generatedName, year, description, amount, vendor } =
-		params;
-
-	let attachment: Attachment;
-
+	const { file, documentDate, documentType, generatedName, description, amount, vendor } = params;
 	const attachmentId = crypto.randomUUID();
+	const uid = getUid();
 
-	if (directoryHandle) {
-		// ファイルシステムに保存
-		const { saveFileToDirectory } = await import('$lib/utils/filesystem');
-		const filePath = await saveFileToDirectory(directoryHandle, year, generatedName, file);
+	// Firebase Storage にアップロード
+	const storageRef = ref(storage, `users/${uid}/attachments/${attachmentId}`);
+	const arrayBuffer = await file.arrayBuffer();
+	const blob = new Blob([arrayBuffer], { type: file.type });
+	await uploadBytes(storageRef, blob, { contentType: file.type });
 
-		attachment = {
-			id: attachmentId,
-			journalEntryId: journalId,
-			documentDate,
-			documentType,
-			originalName: file.name,
-			generatedName,
-			mimeType: file.type,
-			size: file.size,
-			description,
-			amount,
-			vendor,
-			storageType: 'filesystem',
-			filePath,
-			createdAt: new Date().toISOString()
-		};
-	} else {
-		// IndexedDB に Blob を分離保存
-		const arrayBuffer = await file.arrayBuffer();
-		const blob = new Blob([arrayBuffer], { type: file.type });
+	const attachment: Attachment = {
+		id: attachmentId,
+		journalEntryId: journalId,
+		documentDate,
+		documentType,
+		originalName: file.name,
+		generatedName,
+		mimeType: file.type,
+		size: file.size,
+		description,
+		amount,
+		vendor,
+		storageType: 'firebase',
+		createdAt: new Date().toISOString()
+	};
 
-		// attachmentBlobs テーブルに Blob を保存
-		await db.attachmentBlobs.put({ id: attachmentId, blob });
-
-		attachment = {
-			id: attachmentId,
-			journalEntryId: journalId,
-			documentDate,
-			documentType,
-			originalName: file.name,
-			generatedName,
-			mimeType: file.type,
-			size: file.size,
-			description,
-			amount,
-			vendor,
-			storageType: 'indexeddb',
-			createdAt: new Date().toISOString()
-		};
-	}
-
-	// 仕訳を更新
 	const updatedAttachments = [...journal.attachments, attachment];
-	await db.journals.update(journalId, {
+	await updateJournal(journalId, {
 		attachments: updatedAttachments,
-		evidenceStatus: 'digital',
-		updatedAt: new Date().toISOString()
+		evidenceStatus: 'digital'
 	});
 
 	return attachment;
 }
 
-/**
- * 仕訳から添付ファイルを削除（ハイブリッド対応）
- */
 export async function removeAttachmentFromJournal(
 	journalId: string,
 	attachmentId: string,
-	directoryHandle?: FileSystemDirectoryHandle | null
+	_directoryHandle?: FileSystemDirectoryHandle | null
 ): Promise<void> {
-	const journal = await db.journals.get(journalId);
-	if (!journal) {
-		throw new Error('仕訳が見つかりません');
-	}
+	const { getJournalById, updateJournal } = await import('./journal-repository');
+	const journal = await getJournalById(journalId);
+	if (!journal) throw new Error('仕訳が見つかりません');
 
-	// 削除対象の添付ファイルを取得
-	const attachmentToRemove = journal.attachments.find((a) => a.id === attachmentId);
-
-	// ファイルシステムから削除（filesystem保存の場合）
-	if (
-		attachmentToRemove?.storageType === 'filesystem' &&
-		attachmentToRemove.filePath &&
-		directoryHandle
-	) {
-		const { deleteFileFromDirectory } = await import('$lib/utils/filesystem');
-		await deleteFileFromDirectory(directoryHandle, attachmentToRemove.filePath);
-	}
-
-	// attachmentBlobs テーブルから Blob を削除（indexeddb保存の場合）
-	if (attachmentToRemove?.storageType === 'indexeddb') {
-		await db.attachmentBlobs.delete(attachmentToRemove.id);
+	const att = journal.attachments.find((a) => a.id === attachmentId);
+	if (att?.storageType === 'firebase') {
+		try {
+			const uid = getUid();
+			await deleteObject(ref(storage, `users/${uid}/attachments/${attachmentId}`));
+		} catch {}
 	}
 
 	const updatedAttachments = journal.attachments.filter((a) => a.id !== attachmentId);
-	const newEvidenceStatus = updatedAttachments.length > 0 ? 'digital' : 'none';
-
-	await db.journals.update(journalId, {
+	await updateJournal(journalId, {
 		attachments: updatedAttachments,
-		evidenceStatus: newEvidenceStatus,
-		updatedAt: new Date().toISOString()
+		evidenceStatus: updatedAttachments.length > 0 ? 'digital' : 'none'
 	});
 }
 
-/**
- * 添付ファイルのBlobを取得（ハイブリッド対応）
- */
 export async function getAttachmentBlob(
 	journalId: string,
 	attachmentId: string,
-	directoryHandle?: FileSystemDirectoryHandle | null
+	_directoryHandle?: FileSystemDirectoryHandle | null
 ): Promise<Blob | null> {
-	const journal = await db.journals.get(journalId);
+	const { getJournalById } = await import('./journal-repository');
+	const journal = await getJournalById(journalId);
 	if (!journal) return null;
-
 	const attachment = journal.attachments.find((a) => a.id === attachmentId);
 	if (!attachment) return null;
 
-	// ファイルシステムから読み込み
-	if (attachment.storageType === 'filesystem' && attachment.filePath && directoryHandle) {
-		const { readFileFromDirectory } = await import('$lib/utils/filesystem');
-		return await readFileFromDirectory(directoryHandle, attachment.filePath);
+	if (attachment.storageType === 'firebase') {
+		try {
+			const uid = getUid();
+			return await getBlob(ref(storage, `users/${uid}/attachments/${attachmentId}`));
+		} catch {
+			return null;
+		}
 	}
-
-	// attachmentBlobs テーブルから取得
-	const blobRecord = await db.attachmentBlobs.get(attachment.id);
-	return blobRecord?.blob ?? null;
+	return null;
 }
 
 /**

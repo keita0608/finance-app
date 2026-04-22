@@ -8,19 +8,19 @@ import type {
 } from '$lib/types';
 import type { FixedAsset } from '$lib/types/blue-return-types';
 import type { Invoice } from '$lib/types/invoice';
-import { db } from './database';
+import { userCol } from './database';
+import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { restoreAllSettings } from './settings-repository';
+import { getAllJournals, getJournalsByYear, updateJournal } from './journal-repository';
+import { getAllVendors } from './vendor-repository';
+import { getAllAccounts } from './account-repository';
+import { getAllFixedAssets } from './fixed-asset-repository';
+import { getAllInvoices } from './invoice-repository';
 
 // ==================== インポート関連 ====================
 
-/**
- * インポートモード
- */
 export type ImportMode = 'merge' | 'overwrite';
 
-/**
- * インポート結果
- */
 export interface ImportResult {
 	success: boolean;
 	journalsImported: number;
@@ -32,25 +32,15 @@ export interface ImportResult {
 	errors: string[];
 }
 
-/**
- * ExportDataの検証
- */
 export function validateExportData(data: unknown): data is ExportData {
-	if (!data || typeof data !== 'object') {
-		return false;
-	}
-
+	if (!data || typeof data !== 'object') return false;
 	const d = data as Record<string, unknown>;
-
-	// 必須フィールドのチェック
 	if (typeof d.version !== 'string') return false;
 	if (typeof d.exportedAt !== 'string') return false;
 	if (typeof d.fiscalYear !== 'number') return false;
 	if (!Array.isArray(d.journals)) return false;
 	if (!Array.isArray(d.accounts)) return false;
 	if (!Array.isArray(d.vendors)) return false;
-
-	// 仕訳の必須フィールドをチェック
 	for (const journal of d.journals as Record<string, unknown>[]) {
 		if (typeof journal.id !== 'string') return false;
 		if (typeof journal.date !== 'string') return false;
@@ -58,30 +48,18 @@ export function validateExportData(data: unknown): data is ExportData {
 		if (typeof journal.updatedAt !== 'string') return false;
 		if (!Array.isArray(journal.lines)) return false;
 	}
-
 	return true;
 }
 
-/**
- * BackupDataの検証（フルスナップショット形式）
- * type === 'backup' で判別
- */
 export function validateBackupData(data: unknown): data is BackupData {
-	if (!data || typeof data !== 'object') {
-		return false;
-	}
-
+	if (!data || typeof data !== 'object') return false;
 	const d = data as Record<string, unknown>;
-
-	// BackupData 固有のフィールドチェック
 	if (d.type !== 'backup') return false;
 	if (typeof d.version !== 'string') return false;
 	if (typeof d.exportedAt !== 'string') return false;
 	if (!Array.isArray(d.journals)) return false;
 	if (!Array.isArray(d.accounts)) return false;
 	if (!Array.isArray(d.vendors)) return false;
-
-	// 仕訳の必須フィールドをチェック
 	for (const journal of d.journals as Record<string, unknown>[]) {
 		if (typeof journal.id !== 'string') return false;
 		if (typeof journal.date !== 'string') return false;
@@ -89,24 +67,20 @@ export function validateBackupData(data: unknown): data is BackupData {
 		if (typeof journal.updatedAt !== 'string') return false;
 		if (!Array.isArray(journal.lines)) return false;
 	}
-
 	return true;
 }
 
-/**
- * data.json の中身からデータ種別を判定
- *
- * @returns 'backup' | 'export' | 'unknown'
- */
 export function detectDataType(data: unknown): 'backup' | 'export' | 'unknown' {
 	if (validateBackupData(data)) return 'backup';
 	if (validateExportData(data)) return 'export';
 	return 'unknown';
 }
 
-/**
- * JSONファイルからデータをインポート
- */
+async function clearCollection(name: string): Promise<void> {
+	const snap = await getDocs(userCol(name));
+	for (const d of snap.docs) await deleteDoc(d.ref);
+}
+
 export async function importData(
 	data: ExportData,
 	mode: ImportMode = 'merge'
@@ -123,29 +97,21 @@ export async function importData(
 	};
 
 	try {
-		// 上書きモードの場合、既存データを削除
 		if (mode === 'overwrite') {
-			// 対象年度の仕訳のみ削除
-			const startDate = `${data.fiscalYear}-01-01`;
-			const endDate = `${data.fiscalYear}-12-31`;
-			const existingJournals = await db.journals
-				.where('date')
-				.between(startDate, endDate, true, true)
-				.toArray();
-
+			const existingJournals = await getJournalsByYear(data.fiscalYear);
 			for (const journal of existingJournals) {
-				await db.journals.delete(journal.id);
+				await deleteDoc(doc(userCol('journals'), journal.id));
 			}
 		}
 
 		// 勘定科目のインポート
 		for (const account of data.accounts) {
-			const existing = await db.accounts.get(account.code);
+			const existingSnap = await getDoc(doc(userCol('accounts'), account.code));
+			const existing = existingSnap.exists();
 
 			if (account.isSystem) {
-				// システム科目の場合：設定（税区分、家事按分）のみ更新
 				if (existing) {
-					await db.accounts.update(account.code, {
+					await updateDoc(doc(userCol('accounts'), account.code), {
 						defaultTaxCategory: account.defaultTaxCategory,
 						businessRatioEnabled: account.businessRatioEnabled,
 						defaultBusinessRatio: account.defaultBusinessRatio
@@ -154,10 +120,8 @@ export async function importData(
 				continue;
 			}
 
-			// ユーザー追加科目のインポート
 			if (!existing) {
-				// DataCloneError回避のため、明示的にプロパティを指定
-				await db.accounts.add({
+				await setDoc(doc(userCol('accounts'), account.code), {
 					code: account.code,
 					name: account.name,
 					type: account.type,
@@ -169,8 +133,7 @@ export async function importData(
 				});
 				result.accountsImported++;
 			} else if (mode === 'overwrite') {
-				// 上書きモードでも既存のユーザー科目は更新
-				await db.accounts.update(account.code, {
+				await updateDoc(doc(userCol('accounts'), account.code), {
 					name: account.name,
 					type: account.type,
 					defaultTaxCategory: account.defaultTaxCategory,
@@ -182,12 +145,13 @@ export async function importData(
 		}
 
 		// 取引先のインポート
+		const allVendors = await getAllVendors();
+		const existingVendorNames = new Set(allVendors.map((v) => v.name));
 		for (const vendor of data.vendors) {
-			const existing = await db.vendors.where('name').equals(vendor.name).first();
-			if (!existing) {
-				// 新規追加（IDは新規生成）
-				await db.vendors.add({
-					id: crypto.randomUUID(),
+			if (!existingVendorNames.has(vendor.name)) {
+				const id = crypto.randomUUID();
+				await setDoc(doc(userCol('vendors'), id), {
+					id,
 					name: vendor.name,
 					createdAt: vendor.createdAt
 				});
@@ -197,107 +161,68 @@ export async function importData(
 
 		// 仕訳のインポート
 		for (const journal of data.journals) {
-			const existing = await db.journals.get(journal.id);
+			const existingSnap = await getDoc(doc(userCol('journals'), journal.id));
 
-			if (!existing) {
-				// 新規追加
-				// DataCloneError回避のため、明示的にプロパティを指定（スプレッド演算子を避ける）
-				const cleanJournal: JournalEntry = {
-					id: journal.id,
-					date: journal.date,
-					lines: (journal.lines || []).map((line) => ({
-						id: line.id,
-						type: line.type,
-						accountCode: line.accountCode,
-						amount: line.amount,
-						taxCategory: line.taxCategory,
-						memo: line.memo,
-						// 家事按分メタデータ
-						_businessRatioApplied: line._businessRatioApplied,
-						_originalAmount: line._originalAmount,
-						_businessRatio: line._businessRatio,
-						_businessRatioGenerated: line._businessRatioGenerated
-					})),
-					vendor: journal.vendor,
-					description: journal.description,
-					evidenceStatus: journal.evidenceStatus,
-					attachments: (journal.attachments || []).map((att) => ({
-						id: att.id,
-						journalEntryId: att.journalEntryId,
-						documentDate: att.documentDate,
-						documentType: att.documentType,
-						originalName: att.originalName,
-						generatedName: att.generatedName,
-						mimeType: att.mimeType,
-						size: att.size,
-						description: att.description,
-						amount: att.amount,
-						vendor: att.vendor,
-						storageType: att.storageType,
-						filePath: att.filePath,
-						exportedAt: att.exportedAt,
-						blobPurgedAt: att.blobPurgedAt,
-						archived: att.archived,
-						createdAt: att.createdAt
-					})),
-					createdAt: journal.createdAt,
-					updatedAt: journal.updatedAt
-				};
-				await db.journals.add(cleanJournal);
+			const cleanJournal: JournalEntry = {
+				id: journal.id,
+				date: journal.date,
+				lines: (journal.lines || []).map((line) => ({
+					id: line.id,
+					type: line.type,
+					accountCode: line.accountCode,
+					amount: line.amount,
+					taxCategory: line.taxCategory,
+					memo: line.memo,
+					_businessRatioApplied: line._businessRatioApplied,
+					_originalAmount: line._originalAmount,
+					_businessRatio: line._businessRatio,
+					_businessRatioGenerated: line._businessRatioGenerated
+				})),
+				vendor: journal.vendor,
+				description: journal.description,
+				evidenceStatus: journal.evidenceStatus,
+				attachments: (journal.attachments || []).map((att) => ({
+					id: att.id,
+					journalEntryId: att.journalEntryId,
+					documentDate: att.documentDate,
+					documentType: att.documentType,
+					originalName: att.originalName,
+					generatedName: att.generatedName,
+					mimeType: att.mimeType,
+					size: att.size,
+					description: att.description,
+					amount: att.amount,
+					vendor: att.vendor,
+					storageType: att.storageType,
+					filePath: att.filePath,
+					exportedAt: att.exportedAt,
+					blobPurgedAt: att.blobPurgedAt,
+					archived: att.archived,
+					createdAt: att.createdAt
+				})),
+				createdAt: journal.createdAt,
+				updatedAt: journal.updatedAt
+			};
+
+			if (!existingSnap.exists()) {
+				await setDoc(doc(userCol('journals'), journal.id), cleanJournal);
 				result.journalsImported++;
 			} else if (mode === 'overwrite') {
-				// 上書きモード: 既存を更新
-				const cleanJournal: Partial<JournalEntry> = {
-					date: journal.date,
-					lines: (journal.lines || []).map((line) => ({
-						id: line.id,
-						type: line.type,
-						accountCode: line.accountCode,
-						amount: line.amount,
-						taxCategory: line.taxCategory,
-						memo: line.memo,
-						// 家事按分メタデータ
-						_businessRatioApplied: line._businessRatioApplied,
-						_originalAmount: line._originalAmount,
-						_businessRatio: line._businessRatio,
-						_businessRatioGenerated: line._businessRatioGenerated
-					})),
-					vendor: journal.vendor,
-					description: journal.description,
-					evidenceStatus: journal.evidenceStatus,
-					attachments: (journal.attachments || []).map((att) => ({
-						id: att.id,
-						journalEntryId: att.journalEntryId,
-						documentDate: att.documentDate,
-						documentType: att.documentType,
-						originalName: att.originalName,
-						generatedName: att.generatedName,
-						mimeType: att.mimeType,
-						size: att.size,
-						description: att.description,
-						amount: att.amount,
-						vendor: att.vendor,
-						storageType: att.storageType,
-						filePath: att.filePath,
-						exportedAt: att.exportedAt,
-						blobPurgedAt: att.blobPurgedAt,
-						archived: att.archived,
-						createdAt: att.createdAt
-					})),
+				const { createdAt: _c, id: _i, ...updates } = cleanJournal;
+				await updateDoc(doc(userCol('journals'), journal.id), {
+					...updates,
 					updatedAt: journal.updatedAt
-				};
-				await db.journals.update(journal.id, cleanJournal);
+				});
 				result.journalsImported++;
 			}
-			// mergeモードで既存がある場合はスキップ
 		}
 
-		// 固定資産のインポート（v2.0.0 以降）
+		// 固定資産のインポート
 		if (data.fixedAssets && Array.isArray(data.fixedAssets)) {
 			for (const asset of data.fixedAssets as FixedAsset[]) {
-				const existing = await db.fixedAssets.get(asset.id);
-				if (!existing) {
-					await db.fixedAssets.add({
+				const existingSnap = await getDoc(doc(userCol('fixed_assets'), asset.id));
+				if (!existingSnap.exists()) {
+					await setDoc(doc(userCol('fixed_assets'), asset.id), {
 						id: asset.id,
 						name: asset.name,
 						category: asset.category,
@@ -315,7 +240,7 @@ export async function importData(
 					});
 					result.fixedAssetsImported++;
 				} else if (mode === 'overwrite') {
-					await db.fixedAssets.update(asset.id, {
+					await updateDoc(doc(userCol('fixed_assets'), asset.id), {
 						name: asset.name,
 						category: asset.category,
 						acquisitionDate: asset.acquisitionDate,
@@ -334,15 +259,14 @@ export async function importData(
 			}
 		}
 
-		// 請求書のインポート（v2.0.0 以降）
+		// 請求書のインポート
 		if (data.invoices && Array.isArray(data.invoices)) {
 			for (const invoice of data.invoices as Invoice[]) {
-				const existing = await db.invoices.get(invoice.id);
-				// DataCloneError回避: ネストした配列/オブジェクトをプレーン化
+				const existingSnap = await getDoc(doc(userCol('invoices'), invoice.id));
 				const cleanItems = JSON.parse(JSON.stringify(invoice.items || []));
 				const cleanTaxBreakdown = JSON.parse(JSON.stringify(invoice.taxBreakdown));
-				if (!existing) {
-					await db.invoices.add({
+				if (!existingSnap.exists()) {
+					await setDoc(doc(userCol('invoices'), invoice.id), {
 						id: invoice.id,
 						invoiceNumber: invoice.invoiceNumber,
 						issueDate: invoice.issueDate,
@@ -361,7 +285,7 @@ export async function importData(
 					});
 					result.invoicesImported++;
 				} else if (mode === 'overwrite') {
-					await db.invoices.update(invoice.id, {
+					await updateDoc(doc(userCol('invoices'), invoice.id), {
 						invoiceNumber: invoice.invoiceNumber,
 						issueDate: invoice.issueDate,
 						dueDate: invoice.dueDate,
@@ -381,7 +305,6 @@ export async function importData(
 			}
 		}
 
-		// 全設定の復元（v2.0.0 以降）
 		if (data.allSettings && typeof data.allSettings === 'object') {
 			try {
 				await restoreAllSettings(data.allSettings as Partial<SettingsValueMap>);
@@ -399,10 +322,6 @@ export async function importData(
 	return result;
 }
 
-/**
- * インポート後に証憑のBlobデータを復元
- * ZIPインポート時に使用
- */
 export async function restoreAttachmentBlobs(
 	attachmentBlobs: Map<string, Blob>,
 	storageMode: StorageType,
@@ -413,14 +332,12 @@ export async function restoreAttachmentBlobs(
 	const total = attachmentBlobs.size;
 	let current = 0;
 
-	// 全仕訳を取得して証憑を探す
-	const journals = await db.journals.toArray();
+	const journals = await getAllJournals();
 
 	for (const [attachmentId, blob] of attachmentBlobs) {
 		current++;
 		onProgress?.(current, total);
 
-		// この証憑が属する仕訳を検索
 		let targetJournal: JournalEntry | undefined;
 		let targetAttachment: Attachment | undefined;
 
@@ -441,7 +358,6 @@ export async function restoreAttachmentBlobs(
 
 		try {
 			if (storageMode === 'filesystem' && directoryHandle) {
-				// ファイルシステムに保存
 				const { saveFileToDirectory } = await import('$lib/utils/filesystem');
 				const year = parseInt(targetAttachment.documentDate.substring(0, 4), 10);
 				const file = new File([blob], targetAttachment.generatedName, {
@@ -453,29 +369,30 @@ export async function restoreAttachmentBlobs(
 					targetAttachment.generatedName,
 					file
 				);
-
-				// 添付ファイルのメタデータを更新
 				const updatedAttachments = targetJournal.attachments.map((a) =>
 					a.id === attachmentId ? { ...a, storageType: 'filesystem' as StorageType, filePath } : a
 				);
-				await db.journals.update(targetJournal.id, { attachments: updatedAttachments });
+				await updateJournal(targetJournal.id, { attachments: updatedAttachments });
 			} else {
-				// attachmentBlobs テーブルに Blob を保存
-				await db.attachmentBlobs.put({ id: attachmentId, blob });
-
-				// 添付ファイルのメタデータを更新
+				// Firebase Storage にアップロード
+				const { storage } = await import('$lib/firebase');
+				const { getUid } = await import('$lib/stores/auth.svelte');
+				const { ref, uploadBytes } = await import('firebase/storage');
+				const uid = getUid();
+				const fileRef = ref(storage, `users/${uid}/attachments/${attachmentId}`);
+				await uploadBytes(fileRef, blob);
 				const updatedAttachments = targetJournal.attachments.map((a) =>
 					a.id === attachmentId
 						? {
 								...a,
-								storageType: 'indexeddb' as StorageType,
+								storageType: 'firebase' as StorageType,
 								filePath: undefined,
 								blobPurgedAt: undefined,
 								archived: undefined
 							}
 						: a
 				);
-				await db.journals.update(targetJournal.id, { attachments: updatedAttachments });
+				await updateJournal(targetJournal.id, { attachments: updatedAttachments });
 			}
 			result.restored++;
 		} catch (error) {
@@ -489,9 +406,6 @@ export async function restoreAttachmentBlobs(
 	return result;
 }
 
-/**
- * インポート前のプレビュー情報を取得
- */
 export async function getImportPreview(data: ExportData): Promise<{
 	fiscalYear: number;
 	journalCount: number;
@@ -506,22 +420,12 @@ export async function getImportPreview(data: ExportData): Promise<{
 	newInvoiceCount: number;
 	hasSettings: boolean;
 }> {
-	// 既存の仕訳ID一覧
-	const existingJournalIds = new Set((await db.journals.toArray()).map((j) => j.id));
+	const existingJournalIds = new Set((await getAllJournals()).map((j) => j.id));
+	const existingAccountCodes = new Set((await getAllAccounts()).map((a) => a.code));
+	const existingVendorNames = new Set((await getAllVendors()).map((v) => v.name));
+	const existingFixedAssetIds = new Set((await getAllFixedAssets()).map((a) => a.id));
+	const existingInvoiceIds = new Set((await getAllInvoices()).map((i) => i.id));
 
-	// 既存の勘定科目コード一覧
-	const existingAccountCodes = new Set((await db.accounts.toArray()).map((a) => a.code));
-
-	// 既存の取引先名一覧
-	const existingVendorNames = new Set((await db.vendors.toArray()).map((v) => v.name));
-
-	// 既存の固定資産ID一覧
-	const existingFixedAssetIds = new Set((await db.fixedAssets.toArray()).map((a) => a.id));
-
-	// 既存の請求書ID一覧
-	const existingInvoiceIds = new Set((await db.invoices.toArray()).map((i) => i.id));
-
-	// 新規追加される件数をカウント
 	const newJournals = data.journals.filter((j) => !existingJournalIds.has(j.id));
 	const newAccounts = data.accounts.filter((a) => !a.isSystem && !existingAccountCodes.has(a.code));
 	const newVendors = data.vendors.filter((v) => !existingVendorNames.has(v.name));
@@ -549,9 +453,6 @@ export async function getImportPreview(data: ExportData): Promise<{
 
 // ==================== フルリストア（BackupData） ====================
 
-/**
- * フルリストア結果
- */
 export interface FullRestoreResult {
 	success: boolean;
 	journalsRestored: number;
@@ -563,12 +464,6 @@ export interface FullRestoreResult {
 	errors: string[];
 }
 
-/**
- * BackupData からフルリストア（上書きのみ）
- *
- * 全テーブルをクリアしてバックアップデータで上書き。
- * storageMode / storageModeByYear / lastExportedAt は除外（リストア先環境に依存）。
- */
 export async function importBackupData(data: BackupData): Promise<FullRestoreResult> {
 	const result: FullRestoreResult = {
 		success: false,
@@ -582,18 +477,15 @@ export async function importBackupData(data: BackupData): Promise<FullRestoreRes
 	};
 
 	try {
-		// 全テーブルをクリア
-		await db.journals.clear();
-		await db.attachmentBlobs.clear();
-		await db.accounts.clear();
-		await db.vendors.clear();
-		await db.fixedAssets.clear();
-		await db.invoices.clear();
+		await clearCollection('journals');
+		await clearCollection('accounts');
+		await clearCollection('vendors');
+		await clearCollection('fixed_assets');
+		await clearCollection('invoices');
 
-		// 勘定科目の復元
 		for (const account of data.accounts) {
 			try {
-				await db.accounts.add({
+				await setDoc(doc(userCol('accounts'), account.code), {
 					code: account.code,
 					name: account.name,
 					type: account.type,
@@ -611,10 +503,9 @@ export async function importBackupData(data: BackupData): Promise<FullRestoreRes
 			}
 		}
 
-		// 取引先の復元
 		for (const vendor of data.vendors) {
 			try {
-				await db.vendors.add({
+				await setDoc(doc(userCol('vendors'), vendor.id), {
 					id: vendor.id,
 					name: vendor.name,
 					address: vendor.address,
@@ -634,7 +525,6 @@ export async function importBackupData(data: BackupData): Promise<FullRestoreRes
 			}
 		}
 
-		// 仕訳の復元
 		for (const journal of data.journals) {
 			try {
 				const cleanJournal: JournalEntry = {
@@ -677,7 +567,7 @@ export async function importBackupData(data: BackupData): Promise<FullRestoreRes
 					createdAt: journal.createdAt,
 					updatedAt: journal.updatedAt
 				};
-				await db.journals.add(cleanJournal);
+				await setDoc(doc(userCol('journals'), journal.id), cleanJournal);
 				result.journalsRestored++;
 			} catch (error) {
 				result.errors.push(
@@ -686,11 +576,10 @@ export async function importBackupData(data: BackupData): Promise<FullRestoreRes
 			}
 		}
 
-		// 固定資産の復元
 		if (data.fixedAssets && Array.isArray(data.fixedAssets)) {
 			for (const asset of data.fixedAssets as FixedAsset[]) {
 				try {
-					await db.fixedAssets.add({
+					await setDoc(doc(userCol('fixed_assets'), asset.id), {
 						id: asset.id,
 						name: asset.name,
 						category: asset.category,
@@ -715,13 +604,12 @@ export async function importBackupData(data: BackupData): Promise<FullRestoreRes
 			}
 		}
 
-		// 請求書の復元
 		if (data.invoices && Array.isArray(data.invoices)) {
 			for (const invoice of data.invoices as Invoice[]) {
 				try {
 					const cleanItems = JSON.parse(JSON.stringify(invoice.items || []));
 					const cleanTaxBreakdown = JSON.parse(JSON.stringify(invoice.taxBreakdown));
-					await db.invoices.add({
+					await setDoc(doc(userCol('invoices'), invoice.id), {
 						id: invoice.id,
 						invoiceNumber: invoice.invoiceNumber,
 						issueDate: invoice.issueDate,
@@ -747,7 +635,6 @@ export async function importBackupData(data: BackupData): Promise<FullRestoreRes
 			}
 		}
 
-		// 設定の復元（storageMode, storageModeByYear, lastExportedAt は除外）
 		if (data.allSettings && typeof data.allSettings === 'object') {
 			try {
 				await restoreAllSettings(data.allSettings as Partial<SettingsValueMap>);
@@ -765,9 +652,6 @@ export async function importBackupData(data: BackupData): Promise<FullRestoreRes
 	return result;
 }
 
-/**
- * フルリストアのプレビュー情報を取得
- */
 export function getBackupPreview(data: BackupData): {
 	journalCount: number;
 	accountCount: number;
@@ -777,7 +661,6 @@ export function getBackupPreview(data: BackupData): {
 	hasSettings: boolean;
 	years: number[];
 } {
-	// 年度一覧を抽出
 	const yearSet = new Set<number>();
 	for (const journal of data.journals) {
 		const year = parseInt(journal.date.substring(0, 4), 10);
@@ -795,11 +678,8 @@ export function getBackupPreview(data: BackupData): {
 	};
 }
 
-// ==================== アーカイブリストア（ExportData → 仕訳+証憑のみマージ） ====================
+// ==================== アーカイブリストア ====================
 
-/**
- * アーカイブリストア結果
- */
 export interface ArchiveRestoreResult {
 	success: boolean;
 	journalsRestored: number;
@@ -807,12 +687,6 @@ export interface ArchiveRestoreResult {
 	errors: string[];
 }
 
-/**
- * アーカイブZIPからリストア（仕訳＋証憑のみマージ復元）
- *
- * グローバルデータ（勘定科目・取引先・固定資産・設定）は一切触らない。
- * 既存の仕訳IDと重複する場合はスキップ。
- */
 export async function importArchiveData(data: ExportData): Promise<ArchiveRestoreResult> {
 	const result: ArchiveRestoreResult = {
 		success: false,
@@ -823,10 +697,9 @@ export async function importArchiveData(data: ExportData): Promise<ArchiveRestor
 
 	try {
 		for (const journal of data.journals) {
-			const existing = await db.journals.get(journal.id);
+			const existingSnap = await getDoc(doc(userCol('journals'), journal.id));
 
-			if (existing) {
-				// 既存の仕訳IDと重複 → スキップ
+			if (existingSnap.exists()) {
 				result.journalsSkipped++;
 				continue;
 			}
@@ -872,7 +745,7 @@ export async function importArchiveData(data: ExportData): Promise<ArchiveRestor
 					createdAt: journal.createdAt,
 					updatedAt: journal.updatedAt
 				};
-				await db.journals.add(cleanJournal);
+				await setDoc(doc(userCol('journals'), journal.id), cleanJournal);
 				result.journalsRestored++;
 			} catch (error) {
 				result.errors.push(
@@ -889,9 +762,6 @@ export async function importArchiveData(data: ExportData): Promise<ArchiveRestor
 	return result;
 }
 
-/**
- * アーカイブリストアのプレビュー情報を取得
- */
 export async function getArchiveRestorePreview(data: ExportData): Promise<{
 	fiscalYear: number;
 	journalCount: number;
@@ -899,12 +769,11 @@ export async function getArchiveRestorePreview(data: ExportData): Promise<{
 	skippedJournalCount: number;
 	attachmentCount: number;
 }> {
-	const existingJournalIds = new Set((await db.journals.toArray()).map((j) => j.id));
+	const existingJournalIds = new Set((await getAllJournals()).map((j) => j.id));
 
 	const newJournals = data.journals.filter((j) => !existingJournalIds.has(j.id));
 	const skippedJournals = data.journals.filter((j) => existingJournalIds.has(j.id));
 
-	// 新規仕訳に含まれる証憑数をカウント
 	let attachmentCount = 0;
 	for (const journal of newJournals) {
 		attachmentCount += (journal.attachments || []).length;

@@ -23,11 +23,15 @@
 	import { onMount } from 'svelte';
 	import { initWebMCP, destroyWebMCP } from '$lib/webmcp';
 	import { useUICommand, clearPendingCommand } from '$lib/stores/uiCommand.svelte';
+	import { useAuth } from '$lib/stores/auth.svelte';
 	import { toast } from 'svelte-sonner';
 	import { pwaInfo } from 'virtual:pwa-info';
 	import './layout.css';
 
 	let { children } = $props();
+
+	const authState = useAuth();
+	const isLoginPage = $derived($page.route.id === '/login');
 
 	// UICommand ストア（WebMCP UI操作型ツールからのコマンドを受信）
 	const uiCommand = useUICommand();
@@ -52,6 +56,13 @@
 	// ヘルプページかどうか（ヘルプページは個別にdescriptionを設定するため除外）
 	// route.id を使用することでプリレンダリング時も正しく判定できる
 	const isHelpPage = $derived($page.route.id?.startsWith('/help') ?? false);
+
+	// 認証チェック: 未ログインかつログインページ以外はリダイレクト
+	$effect(() => {
+		if (!authState.loading && !authState.user && !isLoginPage) {
+			goto(`${base}/login`);
+		}
+	});
 
 	onMount(() => {
 		// テーマを初期化
@@ -83,15 +94,12 @@
 			// v0.4.0 アップグレード通知: 既存ユーザーにバックアップ仕様変更を通知
 			try {
 				const dismissed = await getSetting('dismissedUpgradeNotice');
-				// 未表示、かつ現行バージョン以前の通知が dismiss されていない場合のみ表示
 				if (!dismissed || dismissed < CURRENT_VERSION) {
-					// 新規ユーザー（データがない場合）は通知不要 → 仕訳が1件以上あれば既存ユーザー
-					const { db } = await import('$lib/db/database');
-					const journalCount = await db.journals.count();
-					if (journalCount > 0) {
+					const { getAllJournals } = await import('$lib/db/journal-repository');
+					const journals = await getAllJournals();
+					if (journals.length > 0) {
 						showUpgradeNotice = true;
 					} else {
-						// 新規ユーザーは通知済みとしてマーク
 						await setSetting('dismissedUpgradeNotice', CURRENT_VERSION);
 					}
 				}
@@ -227,15 +235,19 @@
 	{@html webManifest}
 </svelte:head>
 
-<Sidebar.Provider>
-	<AppSidebar />
-	<Sidebar.Inset>
-		<AppHeader />
-		<main class="flex-1 p-4">
-			{@render children()}
-		</main>
-	</Sidebar.Inset>
-</Sidebar.Provider>
+{#if isLoginPage}
+	{@render children()}
+{:else}
+	<Sidebar.Provider>
+		<AppSidebar />
+		<Sidebar.Inset>
+			<AppHeader />
+			<main class="flex-1 p-4">
+				{@render children()}
+			</main>
+		</Sidebar.Inset>
+	</Sidebar.Provider>
+{/if}
 
 <!-- v0.4.0 アップグレード通知ダイアログ -->
 <AlertDialog.Root bind:open={showUpgradeNotice}>

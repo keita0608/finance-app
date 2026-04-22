@@ -6,13 +6,14 @@
  */
 
 // ==================== Database ====================
-export { db, initializeDatabase } from './database';
+export { initializeDatabase } from './database';
 export type { SettingsRecord } from './database';
 
 // ==================== Accounts ====================
 export {
 	getAccountsByType,
 	getAllAccounts,
+	getAccountByCode,
 	addAccount,
 	updateAccount,
 	deleteAccount,

@@ -10,7 +10,7 @@
 	import type { Account, AccountType, TaxCategory } from '$lib/types';
 	import { AccountTypeLabels, TaxCategoryLabels } from '$lib/types';
 	import {
-		db,
+		getAccountByCode,
 		addAccount,
 		updateAccount,
 		generateNextCode,
@@ -145,7 +145,7 @@
 
 				await updateAccount(editingAccount.code, updates);
 			} else {
-				const existing = await db.accounts.get(formCode.trim());
+				const existing = await getAccountByCode(formCode.trim());
 				if (existing) {
 					formError = 'この勘定科目コードは既に使用されています';
 					return;

@@ -1,77 +1,68 @@
 import type { Account } from '$lib/types';
-import { db } from './database';
+import { userCol } from './database';
+import {
+	doc,
+	getDoc,
+	getDocs,
+	setDoc,
+	updateDoc,
+	deleteDoc,
+	query,
+	where,
+	orderBy
+} from 'firebase/firestore';
 
-/**
- * 勘定科目の取得（カテゴリ別）
- */
 export async function getAccountsByType(type: Account['type']): Promise<Account[]> {
-	return db.accounts.where('type').equals(type).sortBy('code');
+	const q = query(userCol('accounts'), where('type', '==', type), orderBy('code'));
+	const snap = await getDocs(q);
+	return snap.docs.map((d) => d.data() as Account);
 }
 
-/**
- * 全勘定科目の取得
- */
+export async function getAccountByCode(code: string): Promise<Account | undefined> {
+	const snap = await getDoc(doc(userCol('accounts'), code));
+	return snap.exists() ? (snap.data() as Account) : undefined;
+}
+
 export async function getAllAccounts(): Promise<Account[]> {
-	return db.accounts.orderBy('code').toArray();
+	const q = query(userCol('accounts'), orderBy('code'));
+	const snap = await getDocs(q);
+	return snap.docs.map((d) => d.data() as Account);
 }
 
-/**
- * 勘定科目の追加
- */
 export async function addAccount(
 	account: Omit<Account, 'isSystem' | 'createdAt'>
 ): Promise<string> {
 	const now = new Date().toISOString();
-	await db.accounts.add({
-		...account,
-		isSystem: false,
-		createdAt: now
-	});
+	const data: Account = { ...account, isSystem: false, createdAt: now };
+	await setDoc(doc(userCol('accounts'), account.code), data);
 	return account.code;
 }
 
-/**
- * 勘定科目の更新
- */
 export async function updateAccount(
 	code: string,
 	updates: Partial<Omit<Account, 'code' | 'isSystem' | 'createdAt'>>
 ): Promise<void> {
-	await db.accounts.update(code, updates);
+	await updateDoc(doc(userCol('accounts'), code), updates as Record<string, unknown>);
 }
 
-/**
- * 勘定科目の削除
- */
 export async function deleteAccount(code: string): Promise<void> {
-	const account = await db.accounts.get(code);
-	if (account?.isSystem) {
-		throw new Error('システム勘定科目は削除できません');
-	}
-	await db.accounts.delete(code);
+	const snap = await getDoc(doc(userCol('accounts'), code));
+	if (snap.data()?.isSystem) throw new Error('システム勘定科目は削除できません');
+	await deleteDoc(doc(userCol('accounts'), code));
 }
 
-/**
- * 勘定科目が使用中かチェック
- */
 export async function isAccountInUse(code: string): Promise<boolean> {
-	const journal = await db.journals
-		.filter((j) => j.lines.some((line) => line.accountCode === code))
-		.first();
-	return !!journal;
+	const journals = await getAllAccounts();
+	// journalリポジトリをインポートすると循環になるため、Firestore直接クエリで代替
+	const { getAllJournals } = await import('./journal-repository');
+	const allJournals = await getAllJournals();
+	return allJournals.some((j) => j.lines.some((l) => l.accountCode === code));
 }
 
-/**
- * 勘定科目コード体系（4桁）
- *
- * 1桁目: カテゴリ
- *   1: 資産, 2: 負債, 3: 純資産, 4: 収益, 5: 費用
- *
- * 2桁目: 区分
- *   0: システム, 1: ユーザー追加
- *
- * 3-4桁目: 連番（01-99）
- */
+export function isSystemAccount(code: string): boolean {
+	return code.length === 4 && code[1] === '0';
+}
+
 const CATEGORY_PREFIX: Record<Account['type'], number> = {
 	asset: 1,
 	liability: 2,
@@ -80,40 +71,19 @@ const CATEGORY_PREFIX: Record<Account['type'], number> = {
 	expense: 5
 };
 
-/**
- * コードからシステム科目かどうかを判定
- */
-export function isSystemAccount(code: string): boolean {
-	return code.length === 4 && code[1] === '0';
-}
-
-/**
- * 次の勘定科目コードを生成（ユーザー追加用）
- */
 export async function generateNextCode(type: Account['type']): Promise<string> {
 	const prefix = CATEGORY_PREFIX[type];
-	// ユーザー追加は2桁目が1: X1XX
-	const minCode = prefix * 1000 + 100; // 例: 1100, 2100, ...
-	const maxCode = prefix * 1000 + 199; // 例: 1199, 2199, ...
+	const minCode = prefix * 1000 + 100;
+	const maxCode = prefix * 1000 + 199;
 
-	const accounts = await db.accounts.where('type').equals(type).toArray();
-
-	// ユーザー追加科目のコードのみ抽出してソート
+	const accounts = await getAccountsByType(type);
 	const codes = accounts
 		.map((a) => parseInt(a.code, 10))
 		.filter((n) => !isNaN(n) && n >= minCode && n <= maxCode)
 		.sort((a, b) => a - b);
 
-	if (codes.length === 0) {
-		return String(minCode);
-	}
-
-	// 最大値 + 1
+	if (codes.length === 0) return String(minCode);
 	const nextCode = codes[codes.length - 1] + 1;
-
-	if (nextCode > maxCode) {
-		throw new Error(`${type} のユーザー追加科目の上限（99件）に達しました`);
-	}
-
+	if (nextCode > maxCode) throw new Error(`${type} のユーザー追加科目の上限（99件）に達しました`);
 	return String(nextCode);
 }

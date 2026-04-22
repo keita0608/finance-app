@@ -3,7 +3,8 @@
  * デスクトップ向けのファイルシステム操作
  */
 
-import { db } from '$lib/db';
+// FileSystemDirectoryHandle はシリアライズ不可のため、セッション内のみメモリに保持する
+let _savedDirectoryHandle: FileSystemDirectoryHandle | null = null;
 
 /**
  * FileSystemDirectoryHandle の拡張型定義
@@ -17,9 +18,6 @@ interface ExtendedFileSystemDirectoryHandle extends FileSystemDirectoryHandle {
 	queryPermission(descriptor: FileSystemPermissionDescriptor): Promise<PermissionState>;
 	requestPermission(descriptor: FileSystemPermissionDescriptor): Promise<PermissionState>;
 }
-
-// IndexedDBに保存するディレクトリハンドルのキー
-const DIRECTORY_HANDLE_KEY = 'outputDirectoryHandle';
 
 /**
  * File System Access APIがブラウザでサポートされているか判定
@@ -63,32 +61,15 @@ export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null>
  * @returns 取得したディレクトリハンドル。存在しない、または権限がない場合はnull
  */
 export async function getSavedDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
-	if (!supportsFileSystemAccess()) {
-		return null;
-	}
+	if (!supportsFileSystemAccess()) return null;
+	if (!_savedDirectoryHandle) return null;
 
 	try {
-		// IndexedDBからハンドルを取得
-		const stored = await db.table('settings').get(DIRECTORY_HANDLE_KEY);
-		if (!stored?.handle) {
-			return null;
-		}
-
-		const handle = stored.handle as ExtendedFileSystemDirectoryHandle;
-
-		// 権限を確認（必要なら再リクエスト）
+		const handle = _savedDirectoryHandle as ExtendedFileSystemDirectoryHandle;
 		const permission = await handle.queryPermission({ mode: 'readwrite' });
-		if (permission === 'granted') {
-			return handle;
-		}
-
-		// 権限をリクエスト
+		if (permission === 'granted') return handle;
 		const newPermission = await handle.requestPermission({ mode: 'readwrite' });
-		if (newPermission === 'granted') {
-			return handle;
-		}
-
-		return null;
+		return newPermission === 'granted' ? handle : null;
 	} catch {
 		return null;
 	}
@@ -100,18 +81,11 @@ export async function getSavedDirectoryHandle(): Promise<FileSystemDirectoryHand
  * @param handle - 保存するディレクトリハンドル
  */
 export async function saveDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<void> {
-	await db.table('settings').put({
-		key: DIRECTORY_HANDLE_KEY,
-		handle,
-		updatedAt: new Date().toISOString()
-	});
+	_savedDirectoryHandle = handle;
 }
 
-/**
- * IndexedDBに保存済みディレクトリハンドルをクリア
- */
 export async function clearDirectoryHandle(): Promise<void> {
-	await db.table('settings').delete(DIRECTORY_HANDLE_KEY);
+	_savedDirectoryHandle = null;
 }
 
 /**
