@@ -36,9 +36,9 @@ export default defineConfig({
 				}
 			},
 			manifest: {
-				name: 'e-shiwake - 電子仕訳',
-				short_name: 'e-shiwake',
-				description: 'フリーランス・個人事業主向けの仕訳入力+証憑管理PWA',
+				name: '電子仕訳サイト',
+				short_name: '電子仕訳',
+				description: '電子仕訳サイト',
 				start_url: './',
 				display: 'standalone',
 				background_color: '#ffffff',

@@ -190,6 +190,7 @@
 
 	async function handleGoToBackup() {
 		showUpgradeNotice = false;
+		// チェックが入っていれば非表示設定を保存
 		if (suppressUpgradeNotice) {
 			await setSetting('dismissedUpgradeNotice', CURRENT_VERSION);
 		}
@@ -202,16 +203,32 @@
 	<title>電子仕訳サイト</title>
 	<!-- ヘルプページは個別にdescriptionを設定するため、ここでは除外 -->
 	{#if !isHelpPage}
-		<meta name="description" content="電子仕訳サイト" />
-		<meta property="og:description" content="電子仕訳サイト" />
-		<meta name="twitter:description" content="電子仕訳サイト" />
+		<meta
+			name="description"
+			content="電子仕訳サイト"
+		/>
+		<meta
+			property="og:description"
+			content="電子仕訳サイト"
+		/>
+		<meta
+			name="twitter:description"
+			content="電子仕訳サイト"
+		/>
 	{/if}
-	<meta property="og:title" content="電子仕訳サイト" />
+	<meta
+		property="og:title"
+		content="電子仕訳サイト"
+	/>
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="https://keita0608.github.io/finance-app/" />
 	<meta property="og:site_name" content="電子仕訳サイト" />
 	<meta property="og:locale" content="ja_JP" />
 	<meta name="twitter:card" content="summary_large_image" />
+	<meta
+		name="twitter:title"
+		content="電子仕訳サイト"
+	/>
 	<meta name="twitter:title" content="電子仕訳サイト" />
 	<!-- PWA manifest（ビルド時に挿入） -->
 	{@html webManifest}
