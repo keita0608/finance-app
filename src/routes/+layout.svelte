@@ -225,10 +225,6 @@
 	<meta property="og:site_name" content="電子仕訳サイト" />
 	<meta property="og:locale" content="ja_JP" />
 	<meta name="twitter:card" content="summary_large_image" />
-	<meta
-		name="twitter:title"
-		content="電子仕訳サイト"
-	/>
 	<meta name="twitter:title" content="電子仕訳サイト" />
 	<!-- PWA manifest（ビルド時に挿入） -->
 	{@html webManifest}
