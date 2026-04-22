@@ -2,209 +2,209 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- メインページ（仕訳帳） -->
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/</loc>
+    <loc>https://keita0608.github.io/finance-app/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
 
   <!-- 帳簿 -->
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/ledger</loc>
+    <loc>https://keita0608.github.io/finance-app/ledger</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/trial-balance</loc>
+    <loc>https://keita0608.github.io/finance-app/trial-balance</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/profit-loss</loc>
+    <loc>https://keita0608.github.io/finance-app/profit-loss</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/balance-sheet</loc>
+    <loc>https://keita0608.github.io/finance-app/balance-sheet</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/tax-summary</loc>
+    <loc>https://keita0608.github.io/finance-app/tax-summary</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/fixed-assets</loc>
+    <loc>https://keita0608.github.io/finance-app/fixed-assets</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/blue-return</loc>
+    <loc>https://keita0608.github.io/finance-app/blue-return</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/reports</loc>
+    <loc>https://keita0608.github.io/finance-app/reports</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <!-- 請求書 -->
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/invoice</loc>
+    <loc>https://keita0608.github.io/finance-app/invoice</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <!-- 管理 -->
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/vendors</loc>
+    <loc>https://keita0608.github.io/finance-app/vendors</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/accounts</loc>
+    <loc>https://keita0608.github.io/finance-app/accounts</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/data</loc>
+    <loc>https://keita0608.github.io/finance-app/data</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/settings</loc>
+    <loc>https://keita0608.github.io/finance-app/settings</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/archive</loc>
+    <loc>https://keita0608.github.io/finance-app/archive</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <!-- ヘルプ -->
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help</loc>
+    <loc>https://keita0608.github.io/finance-app/help</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/getting-started</loc>
+    <loc>https://keita0608.github.io/finance-app/help/getting-started</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/journal</loc>
+    <loc>https://keita0608.github.io/finance-app/help/journal</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/ledger</loc>
+    <loc>https://keita0608.github.io/finance-app/help/ledger</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/trial-balance</loc>
+    <loc>https://keita0608.github.io/finance-app/help/trial-balance</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/tax-category</loc>
+    <loc>https://keita0608.github.io/finance-app/help/tax-category</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/evidence</loc>
+    <loc>https://keita0608.github.io/finance-app/help/evidence</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/accounts</loc>
+    <loc>https://keita0608.github.io/finance-app/help/accounts</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/fixed-assets</loc>
+    <loc>https://keita0608.github.io/finance-app/help/fixed-assets</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/blue-return</loc>
+    <loc>https://keita0608.github.io/finance-app/help/blue-return</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/invoice</loc>
+    <loc>https://keita0608.github.io/finance-app/help/invoice</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/data-management</loc>
+    <loc>https://keita0608.github.io/finance-app/help/data-management</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/backup-restore</loc>
+    <loc>https://keita0608.github.io/finance-app/help/backup-restore</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/import-export</loc>
+    <loc>https://keita0608.github.io/finance-app/help/import-export</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/archive</loc>
+    <loc>https://keita0608.github.io/finance-app/help/archive</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/pwa</loc>
+    <loc>https://keita0608.github.io/finance-app/help/pwa</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/shortcuts</loc>
+    <loc>https://keita0608.github.io/finance-app/help/shortcuts</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/glossary</loc>
+    <loc>https://keita0608.github.io/finance-app/help/glossary</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
 
   <url>
-    <loc>https://shuji-bonji.github.io/e-shiwake/help/webmcp</loc>
+    <loc>https://keita0608.github.io/finance-app/help/webmcp</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

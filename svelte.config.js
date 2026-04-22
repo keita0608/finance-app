@@ -13,7 +13,7 @@ const config = {
 			strict: false // 未知のルートを許容
 		}),
 		paths: {
-			base: process.env.NODE_ENV === 'production' ? '/e-shiwake' : ''
+			base: process.env.NODE_ENV === 'production' ? '/finance-app' : ''
 		},
 		prerender: {
 			handleHttpError: 'warn', // プリレンダリング時のエラーを警告に
