@@ -15,7 +15,7 @@
 	function getTitle(pathname: string): string {
 		if (pageTitles[pathname]) return pageTitles[pathname];
 		if (pathname.startsWith('/help')) return 'ヘルプ';
-		return 'e-shiwake';
+		return '電子仕訳サイト';
 	}
 
 	const currentTitle = $derived(getTitle(page.url.pathname));

@@ -65,10 +65,9 @@
 		<Sidebar.Menu>
 			<Sidebar.MenuItem>
 				<Sidebar.MenuButton size="lg" class="cursor-default hover:bg-transparent">
-					<img src="{base}/favicon.svg" alt="e-shiwake" class="size-8 rounded-lg" />
+					<img src="{base}/favicon.svg" alt="電子仕訳サイト" class="size-8 rounded-lg" />
 					<div class="flex flex-col gap-0.5 leading-none">
-						<span class="font-semibold">e-shiwake</span>
-						<span class="text-xs text-muted-foreground">電子仕訳</span>
+						<span class="font-semibold">電子仕訳サイト</span>
 					</div>
 				</Sidebar.MenuButton>
 			</Sidebar.MenuItem>
