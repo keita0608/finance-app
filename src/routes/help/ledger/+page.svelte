@@ -1,0 +1,106 @@
+<script lang="ts">
+	import { HelpNote, HelpSection, HelpTable } from '$lib/components/help';
+
+	const pageDescription =
+		'総勘定元帳の見方と使い方。勘定科目別の取引履歴と残高を確認。 - e-shiwake ヘルプ';
+</script>
+
+<svelte:head>
+	<meta name="description" content={pageDescription} />
+	<meta property="og:description" content={pageDescription} />
+	<meta name="twitter:description" content={pageDescription} />
+</svelte:head>
+
+<div>
+	<h1 class="mb-6 text-2xl font-bold">総勘定元帳</h1>
+
+	<HelpSection title="総勘定元帳とは">
+		<p>
+			総勘定元帳は、勘定科目ごとに取引を時系列で一覧表示し、残高の推移を確認できる帳簿です。
+			仕訳帳に記録された取引を、科目別に整理して表示します。
+		</p>
+		<HelpNote type="info">
+			<p>確定申告や決算時に、各科目の取引履歴と残高を確認するために使用します。</p>
+		</HelpNote>
+	</HelpSection>
+
+	<HelpSection title="基本的な使い方">
+		<ol class="ml-4 list-decimal space-y-2">
+			<li>サイドバーから「総勘定元帳」を選択</li>
+			<li>画面上部のドロップダウンで年度を選択</li>
+			<li>勘定科目を選択すると、その科目の取引一覧が表示されます</li>
+		</ol>
+	</HelpSection>
+
+	<HelpSection title="科目の選択">
+		<p>科目タイプ別にグループ化されたバッジから、表示したい科目をクリックして選択します。</p>
+		<ul class="mt-2 ml-4 list-disc space-y-1">
+			<li>資産、負債、純資産、収益、費用の順にグループ表示</li>
+			<li>選択中の科目は青色でハイライト表示</li>
+		</ul>
+		<HelpNote type="tip">
+			<p>使用されている科目のみが表示されます。取引がない科目は表示されません。</p>
+		</HelpNote>
+	</HelpSection>
+
+	<HelpSection title="表示項目">
+		<HelpTable
+			headers={['項目', '説明']}
+			rows={[
+				['日付', '取引日（月/日形式）'],
+				['摘要', '取引の内容'],
+				['相手科目', '対となる勘定科目'],
+				['借方', '借方金額'],
+				['貸方', '貸方金額'],
+				['残高', '取引後の累計残高']
+			]}
+		/>
+		<HelpNote type="info">
+			<p>複合仕訳の場合、相手科目は「諸口」と表示されます。</p>
+		</HelpNote>
+	</HelpSection>
+
+	<HelpSection title="残高の計算">
+		<p>残高は勘定科目の種別によって計算方法が異なります。</p>
+		<HelpTable
+			headers={['種別', '残高の増加', '残高の減少']}
+			rows={[
+				['資産', '借方', '貸方'],
+				['負債', '貸方', '借方'],
+				['純資産', '貸方', '借方'],
+				['収益', '貸方', '借方'],
+				['費用', '借方', '貸方']
+			]}
+		/>
+	</HelpSection>
+
+	<HelpSection title="CSVエクスポート">
+		<p>表示中の科目データをCSVファイルとしてダウンロードできます。</p>
+		<ol class="ml-4 list-decimal space-y-2">
+			<li>エクスポートしたい科目を選択</li>
+			<li>「CSV」ボタンをクリック</li>
+			<li>ファイルが自動的にダウンロードされます</li>
+		</ol>
+		<HelpNote type="info">
+			<p>
+				ファイル名は「総勘定元帳_[科目名]_[年度].csv」形式です。
+				Excelや他の会計ソフトで開くことができます。
+			</p>
+		</HelpNote>
+	</HelpSection>
+
+	<HelpSection title="印刷・PDF保存">
+		<p>表示中の元帳を印刷またはPDFとして保存できます。</p>
+		<ol class="ml-4 list-decimal space-y-2">
+			<li>印刷したい科目を選択</li>
+			<li>「保存」または「印刷」ボタンをクリック</li>
+			<li>ブラウザの印刷ダイアログが表示されます</li>
+		</ol>
+		<HelpNote type="tip">
+			<p>
+				印刷ダイアログで「PDFとして保存」を選択すると、PDFファイルとして出力できます。
+				確定申告の添付資料として活用できます。
+			</p>
+		</HelpNote>
+	</HelpSection>
+</div>
