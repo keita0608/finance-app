@@ -211,8 +211,8 @@
 						<Table.Header>
 							<Table.Row>
 								<Table.Head class="w-24">日付</Table.Head>
-								<Table.Head>摘要</Table.Head>
-								<Table.Head>相手科目</Table.Head>
+								<Table.Head class="min-w-64">摘要</Table.Head>
+								<Table.Head class="w-28">相手科目</Table.Head>
 								<Table.Head class="w-28 text-right">借方</Table.Head>
 								<Table.Head class="w-28 text-right">貸方</Table.Head>
 								<Table.Head class="w-32 text-right">残高</Table.Head>
@@ -225,7 +225,7 @@
 										{entry.date.substring(5).replace('-', '/')}
 									</Table.Cell>
 									<Table.Cell>
-										<div class="max-w-48 truncate" title={entry.description}>
+										<div title={entry.description}>
 											{entry.description}
 										</div>
 										{#if entry.vendor}
