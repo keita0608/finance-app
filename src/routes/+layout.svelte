@@ -190,7 +190,6 @@
 
 	async function handleGoToBackup() {
 		showUpgradeNotice = false;
-		// チェックが入っていれば非表示設定を保存
 		if (suppressUpgradeNotice) {
 			await setSetting('dismissedUpgradeNotice', CURRENT_VERSION);
 		}
@@ -200,37 +199,20 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<title>e-shiwake（電子仕訳）- フリーランス・個人事業主のための無料青色申告会計アプリ</title>
+	<title>電子仕訳サイト</title>
 	<!-- ヘルプページは個別にdescriptionを設定するため、ここでは除外 -->
 	{#if !isHelpPage}
-		<meta
-			name="description"
-			content="e-shiwake（電子仕訳）- フリーランス・個人事業主向けの無料青色申告会計アプリ。複式簿記、証憑管理、決算書作成をブラウザで完結。オフライン対応PWA。"
-		/>
-		<meta
-			property="og:description"
-			content="e-shiwake（電子仕訳）- フリーランス・個人事業主向けの無料青色申告会計アプリ。複式簿記、証憑管理、決算書作成をブラウザで完結。オフライン対応PWA。"
-		/>
-		<meta
-			name="twitter:description"
-			content="e-shiwake（電子仕訳）- フリーランス・個人事業主向けの無料青色申告会計アプリ。複式簿記、証憑管理、決算書作成をブラウザで完結。オフライン対応PWA。"
-		/>
+		<meta name="description" content="電子仕訳サイト" />
+		<meta property="og:description" content="電子仕訳サイト" />
+		<meta name="twitter:description" content="電子仕訳サイト" />
 	{/if}
-	<meta
-		property="og:title"
-		content="e-shiwake（電子仕訳）- フリーランス・個人事業主のための無料青色申告会計アプリ"
-	/>
+	<meta property="og:title" content="電子仕訳サイト" />
 	<meta property="og:type" content="website" />
-	<meta property="og:url" content="https://shuji-bonji.github.io/e-shiwake/" />
-	<meta property="og:image" content="https://shuji-bonji.github.io/e-shiwake/ogimage.png" />
-	<meta property="og:site_name" content="e-shiwake" />
+	<meta property="og:url" content="https://keita0608.github.io/finance-app/" />
+	<meta property="og:site_name" content="電子仕訳サイト" />
 	<meta property="og:locale" content="ja_JP" />
 	<meta name="twitter:card" content="summary_large_image" />
-	<meta
-		name="twitter:title"
-		content="e-shiwake（電子仕訳）- フリーランス・個人事業主のための無料青色申告会計アプリ"
-	/>
-	<meta name="twitter:image" content="https://shuji-bonji.github.io/e-shiwake/ogimage.png" />
+	<meta name="twitter:title" content="電子仕訳サイト" />
 	<!-- PWA manifest（ビルド時に挿入） -->
 	{@html webManifest}
 </svelte:head>
