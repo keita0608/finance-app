@@ -1,5 +1,6 @@
 <script lang="ts">
 	import BackupCard from '$lib/components/data/BackupCard.svelte';
+	import CsvImportCard from '$lib/components/data/CsvImportCard.svelte';
 	import ExportCard from '$lib/components/data/ExportCard.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import {
@@ -74,6 +75,9 @@
 		onunexportedcountchange={handleUnexportedCountChange}
 	/>
 
+	<!-- CSVインポート -->
+	<CsvImportCard onyearschange={handleYearsChange} />
+
 	<!-- エクスポート（CSV / JSON） -->
 	<ExportCard
 		{availableYears}
@@ -111,6 +115,10 @@
 			<div>
 				<p class="font-medium text-foreground">CSVエクスポート</p>
 				<p>仕訳データのみをフラット形式で出力。Excelでの確認や他の会計ソフトへの連携に。</p>
+			</div>
+			<div>
+				<p class="font-medium text-foreground">CSVインポート</p>
+				<p>ExcelなどのCSVファイルから仕訳を一括登録。添付ファイルは別途手動で追加。</p>
 			</div>
 		</Card.Content>
 	</Card.Root>
