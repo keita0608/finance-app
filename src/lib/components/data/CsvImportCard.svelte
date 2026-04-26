@@ -1,6 +1,5 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import {
 		FileSpreadsheet,
@@ -201,32 +200,32 @@
 		{#if parseResult}
 			<!-- エラー -->
 			{#if parseResult.errors.length > 0}
-				<Alert.Root variant="destructive">
-					<AlertCircle class="size-4" />
-					<Alert.Title>エラー ({parseResult.errors.length}件)</Alert.Title>
-					<Alert.Description>
-						<ul class="mt-1 list-disc pl-4 text-xs space-y-0.5">
+				<div class="flex gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-destructive">
+					<AlertCircle class="mt-0.5 size-4 shrink-0" />
+					<div>
+						<p class="mb-1 text-sm font-medium">エラー ({parseResult.errors.length}件)</p>
+						<ul class="list-disc pl-4 text-xs space-y-0.5">
 							{#each parseResult.errors as err (err)}
 								<li>{err}</li>
 							{/each}
 						</ul>
-					</Alert.Description>
-				</Alert.Root>
+					</div>
+				</div>
 			{/if}
 
 			<!-- 警告 -->
 			{#if parseResult.warnings.length > 0}
-				<Alert.Root class="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
-					<TriangleAlert class="size-4 text-amber-600 dark:text-amber-400" />
-					<Alert.Title class="text-amber-800 dark:text-amber-200">警告 ({parseResult.warnings.length}件)</Alert.Title>
-					<Alert.Description class="text-amber-700 dark:text-amber-300">
-						<ul class="mt-1 list-disc pl-4 text-xs space-y-0.5">
+				<div class="flex gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+					<TriangleAlert class="mt-0.5 size-4 shrink-0 text-amber-500" />
+					<div>
+						<p class="mb-1 text-sm font-medium">警告 ({parseResult.warnings.length}件)</p>
+						<ul class="list-disc pl-4 text-xs space-y-0.5">
 							{#each parseResult.warnings as w (w)}
 								<li>{w}</li>
 							{/each}
 						</ul>
-					</Alert.Description>
-				</Alert.Root>
+					</div>
+				</div>
 			{/if}
 
 			<!-- プレビュー -->
