@@ -31,6 +31,7 @@
 
 	let open = $state(false);
 	let inputRef = $state<HTMLInputElement>(null!);
+	let isComposing = $state(false);
 
 	// 外部からフォーカスを設定できるようにエクスポート
 	export function focus() {
@@ -46,9 +47,25 @@
 	});
 
 	function handleInput(e: Event) {
+		// IME変換中はstate更新をスキップ（compositionend で確定後に更新）
+		if ((e as InputEvent).isComposing) return;
 		const target = e.target as HTMLInputElement;
 		onchange(target.value);
 		if (!open && target.value) {
+			open = true;
+		}
+	}
+
+	function handleCompositionStart() {
+		isComposing = true;
+		open = false; // 変換中はポップオーバーを閉じてEnterキーの干渉を防ぐ
+	}
+
+	function handleCompositionEnd(e: CompositionEvent) {
+		isComposing = false;
+		const target = e.target as HTMLInputElement;
+		onchange(target.value);
+		if (target.value) {
 			open = true;
 		}
 	}
@@ -86,6 +103,8 @@
 				type="text"
 				{value}
 				oninput={handleInput}
+				oncompositionstart={handleCompositionStart}
+				oncompositionend={handleCompositionEnd}
 				onfocus={handleFocus}
 				onblur={handleBlur}
 				{onkeydown}

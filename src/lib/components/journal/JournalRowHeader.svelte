@@ -99,7 +99,12 @@
 		<Input
 			type="text"
 			value={journal.description}
-			oninput={(e) => onupdatefield('description', e.currentTarget.value)}
+			oninput={(e) => {
+				if ((e as InputEvent).isComposing) return;
+				onupdatefield('description', e.currentTarget.value);
+			}}
+			oncompositionend={(e) =>
+				onupdatefield('description', (e.target as HTMLInputElement).value)}
 			onblur={onsyncblur}
 			placeholder="摘要"
 			class="min-w-0 flex-1"
