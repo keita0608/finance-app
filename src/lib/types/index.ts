@@ -114,6 +114,7 @@ export interface Account {
 	// 家事按分関連
 	businessRatioEnabled?: boolean; // 家事按分対象かどうか
 	defaultBusinessRatio?: number; // デフォルト事業割合（0-100）
+	isFavorite?: boolean; // お気に入り（科目選択ダイアログの上部に表示）
 }
 
 /**
@@ -236,6 +237,7 @@ export interface JournalEntry {
 	description: string; // 摘要
 	evidenceStatus: EvidenceStatus; // 証跡ステータス
 	attachments: Attachment[]; // 紐付けられた証憑
+	starred?: boolean; // ★マーク（処理待ちなどの目印）
 	createdAt: string; // 作成日時 ISO8601
 	updatedAt: string; // 更新日時 ISO8601
 }

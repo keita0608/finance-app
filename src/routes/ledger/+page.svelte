@@ -101,7 +101,7 @@
 		]);
 
 		const csvContent =
-			'\uFEFF' +
+			'﻿' +
 			[headers.join(','), ...rows.map((row) => row.map((cell) => `"${cell}"`).join(','))].join(
 				'\n'
 			);

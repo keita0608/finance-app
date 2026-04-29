@@ -162,6 +162,11 @@
 		return { icon: null, label: '', color: '' };
 	}
 
+	// ★マークのトグル
+	function toggleStar() {
+		onupdate({ ...journal, starred: !journal.starred });
+	}
+
 	// 証跡ステータスのサイクル
 	function cycleEvidenceStatus() {
 		const statusOrder: EvidenceStatus[] = ['none', 'paper', 'digital'];
@@ -659,6 +664,7 @@
 			onvendorblur={handleVendorBlur}
 			onsyncblur={syncAttachmentsOnBlur}
 			oncyclestatus={cycleEvidenceStatus}
+			ontogglestar={toggleStar}
 			{onconfirm}
 			{oncopy}
 			{ondelete}

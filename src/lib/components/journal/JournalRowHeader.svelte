@@ -3,7 +3,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import type { JournalEntry, Vendor } from '$lib/types';
-	import { Check, Circle, Copy, FileText, Paperclip, Trash2 } from '@lucide/svelte';
+	import { Check, Circle, Copy, FileText, Paperclip, Star, Trash2 } from '@lucide/svelte';
 	import VendorInput from './VendorInput.svelte';
 
 	interface ValidationResult {
@@ -26,6 +26,7 @@
 		onvendorblur: () => void;
 		onsyncblur: () => void;
 		oncyclestatus: () => void;
+		ontogglestar: () => void;
 		onconfirm?: (id: string) => void;
 		oncopy?: (journal: JournalEntry) => void;
 		ondelete: (id: string) => void;
@@ -47,6 +48,7 @@
 		onvendorblur,
 		onsyncblur,
 		oncyclestatus,
+		ontogglestar,
 		onconfirm,
 		oncopy,
 		ondelete,
@@ -59,6 +61,24 @@
 <div class="mb-3 flex flex-col gap-2 journal:flex-row journal:items-center journal:gap-3">
 	<!-- 証跡ステータス + 日付 + 摘要 -->
 	<div class="flex min-w-0 flex-1 items-center gap-2">
+		<!-- ★マーク -->
+		<Tooltip.Provider>
+			<Tooltip.Root>
+				<Tooltip.Trigger>
+					<button type="button" class="p-1" onclick={ontogglestar} tabindex={-1}>
+						<Star
+							class="size-5 transition-colors {journal.starred
+								? 'fill-amber-400 text-amber-400'
+								: 'fill-transparent text-muted-foreground hover:text-amber-400'}"
+						/>
+					</button>
+				</Tooltip.Trigger>
+				<Tooltip.Content>
+					{journal.starred ? '★解除（クリックで変更）' : '★マーク（処理待ちの目印）'}
+				</Tooltip.Content>
+			</Tooltip.Root>
+		</Tooltip.Provider>
+
 		<!-- 証跡ステータス -->
 		<Tooltip.Provider>
 			<Tooltip.Root>
@@ -100,7 +120,7 @@
 			type="text"
 			value={journal.description}
 			oninput={(e) => {
-				if ((e as InputEvent).isComposing) return;
+				if ((e as unknown as InputEvent).isComposing) return;
 				onupdatefield('description', e.currentTarget.value);
 			}}
 			oncompositionend={(e) =>
@@ -112,7 +132,7 @@
 	</div>
 
 	<!-- 取引先 + ボタン類 -->
-	<div class="flex items-center gap-2 pl-8 journal:pl-0">
+	<div class="flex items-center gap-2 pl-16 journal:pl-0">
 		<VendorInput
 			bind:this={vendorInputRef}
 			{vendors}
