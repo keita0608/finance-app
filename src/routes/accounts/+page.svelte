@@ -10,11 +10,12 @@
 		TrendingUp,
 		CreditCard,
 		Gem,
-		Percent
+		Percent,
+		Star
 	} from '@lucide/svelte';
 	import type { Account, AccountType } from '$lib/types';
 	import { AccountTypeLabels } from '$lib/types';
-	import { initializeDatabase, getAllAccounts } from '$lib/db';
+	import { initializeDatabase, getAllAccounts, updateAccount } from '$lib/db';
 	import { BUSINESS_RATIO_CONFIGURABLE_ACCOUNTS } from '$lib/constants/accounts';
 	import AccountEditDialog from '$lib/components/accounts/AccountEditDialog.svelte';
 	import AccountDeleteDialog from '$lib/components/accounts/AccountDeleteDialog.svelte';
@@ -85,6 +86,11 @@
 		deletingAccount = account;
 		deleteDialogOpen = true;
 	}
+
+	async function toggleFavorite(account: Account) {
+		await updateAccount(account.code, { isFavorite: !account.isFavorite });
+		await loadAccounts();
+	}
 </script>
 
 <div class="space-y-6">
@@ -125,6 +131,18 @@
 							{#each typeAccounts as account (account.code)}
 								{#if account.isSystem}
 									<div class="flex items-center gap-1 px-2 py-1 text-sm text-muted-foreground">
+										<button
+											type="button"
+											class="rounded p-0.5 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+											onclick={() => toggleFavorite(account)}
+											title={account.isFavorite ? 'お気に入り解除' : 'お気に入りに追加'}
+										>
+											<Star
+												class="size-3 {account.isFavorite
+													? 'fill-amber-400 text-amber-400'
+													: 'fill-transparent text-muted-foreground/50 hover:text-amber-400'}"
+											/>
+										</button>
 										{account.name}
 										{#if BUSINESS_RATIO_CONFIGURABLE_ACCOUNTS.includes(account.code)}
 											<button
@@ -145,6 +163,18 @@
 									<div
 										class="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm font-medium dark:border-slate-700 dark:bg-slate-800"
 									>
+										<button
+											type="button"
+											class="rounded p-0.5 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+											onclick={() => toggleFavorite(account)}
+											title={account.isFavorite ? 'お気に入り解除' : 'お気に入りに追加'}
+										>
+											<Star
+												class="size-3 {account.isFavorite
+													? 'fill-amber-400 text-amber-400'
+													: 'fill-transparent text-muted-foreground/50 hover:text-amber-400'}"
+											/>
+										</button>
 										<span>{account.name}</span>
 										{#if account.businessRatioEnabled}
 											<Percent class="size-3 text-amber-500" />
