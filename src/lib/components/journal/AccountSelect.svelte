@@ -15,6 +15,8 @@
 	} from '@lucide/svelte';
 	import { cn } from '$lib/utils.js';
 	import { AccountTypeLabels, type Account, type AccountType } from '$lib/types';
+	import { updateAccount } from '$lib/db';
+	import { toast } from 'svelte-sonner';
 
 	interface Props {
 		accounts: Account[];
@@ -97,7 +99,77 @@
 			expandedCategories.clear();
 		}
 	}
+
+	// お気に入りのトグル（楽観的更新 + DB保存）
+	async function toggleFavorite(account: Account) {
+		const next = !account.isFavorite;
+		account.isFavorite = next;
+		try {
+			await updateAccount(account.code, { isFavorite: next });
+		} catch {
+			account.isFavorite = !next;
+			toast.error('お気に入りの更新に失敗しました');
+		}
+	}
 </script>
+
+{#snippet accountChip(account: Account)}
+	{#if account.isSystem}
+		<div class="flex items-center">
+			<button
+				type="button"
+				class={cn(
+					'px-2 py-1 text-sm transition-colors',
+					value === account.code
+						? 'font-medium text-primary underline'
+						: 'text-muted-foreground hover:text-foreground'
+				)}
+				onclick={() => handleSelect(account.code)}
+			>
+				{account.name}
+			</button>
+			<button
+				type="button"
+				class="rounded p-0.5 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+				onclick={() => toggleFavorite(account)}
+				title={account.isFavorite ? 'お気に入り解除' : 'お気に入りに追加'}
+			>
+				<Star
+					class="size-3 {account.isFavorite
+						? 'fill-amber-400 text-amber-400'
+						: 'fill-transparent text-muted-foreground/40 hover:text-amber-400'}"
+				/>
+			</button>
+		</div>
+	{:else}
+		<div
+			class={cn(
+				'flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm font-medium transition-colors dark:border-slate-700 dark:bg-slate-800',
+				value === account.code && 'ring-2 ring-primary ring-offset-1'
+			)}
+		>
+			<button
+				type="button"
+				class="transition-colors hover:text-primary"
+				onclick={() => handleSelect(account.code)}
+			>
+				{account.name}
+			</button>
+			<button
+				type="button"
+				class="rounded p-0.5 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+				onclick={() => toggleFavorite(account)}
+				title={account.isFavorite ? 'お気に入り解除' : 'お気に入りに追加'}
+			>
+				<Star
+					class="size-3 {account.isFavorite
+						? 'fill-amber-400 text-amber-400'
+						: 'fill-transparent text-muted-foreground/40 hover:text-amber-400'}"
+				/>
+			</button>
+		</div>
+	{/if}
+{/snippet}
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
 	<Dialog.Trigger>
@@ -134,31 +206,7 @@
 					</div>
 					<div class="flex flex-wrap gap-1">
 						{#each favoriteAccounts as account (account.code)}
-							{#if account.isSystem}
-								<button
-									type="button"
-									class={cn(
-										'px-2 py-1 text-sm transition-colors',
-										value === account.code
-											? 'font-medium text-primary underline'
-											: 'text-muted-foreground hover:text-foreground'
-									)}
-									onclick={() => handleSelect(account.code)}
-								>
-									{account.name}
-								</button>
-							{:else}
-								<button
-									type="button"
-									class={cn(
-										'rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm font-medium transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700',
-										value === account.code && 'ring-2 ring-primary ring-offset-1'
-									)}
-									onclick={() => handleSelect(account.code)}
-								>
-									{account.name}
-								</button>
-							{/if}
+							{@render accountChip(account)}
 						{/each}
 					</div>
 				</div>
@@ -200,31 +248,7 @@
 						{#if expanded}
 							<div class="flex flex-wrap gap-1">
 								{#each accountsInCategory as account (account.code)}
-									{#if account.isSystem}
-										<button
-											type="button"
-											class={cn(
-												'px-2 py-1 text-sm transition-colors',
-												value === account.code
-													? 'font-medium text-primary underline'
-													: 'text-muted-foreground hover:text-foreground'
-											)}
-											onclick={() => handleSelect(account.code)}
-										>
-											{account.name}
-										</button>
-									{:else}
-										<button
-											type="button"
-											class={cn(
-												'rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm font-medium transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700',
-												value === account.code && 'ring-2 ring-primary ring-offset-1'
-											)}
-											onclick={() => handleSelect(account.code)}
-										>
-											{account.name}
-										</button>
-									{/if}
+									{@render accountChip(account)}
 								{/each}
 							</div>
 						{/if}
