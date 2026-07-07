@@ -1,17 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-	<!-- 角丸正方形の背景（会計ソフト風ブルー） -->
-	<rect width="64" height="64" rx="14" fill="#2563eb"/>
-	<!-- 帳簿（白い台帳） -->
-	<rect x="14" y="9" width="36" height="46" rx="4" fill="#ffffff"/>
-	<!-- ¥マーク -->
-	<g stroke="#2563eb" stroke-width="3.6" stroke-linecap="round" fill="none">
-		<path d="M25 16 L32 26 L39 16"/>
-		<path d="M32 26 V41"/>
-		<path d="M25.5 31 H38.5"/>
-		<path d="M25.5 36 H38.5"/>
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0%" stop-color="#1e293b"/>
+			<stop offset="100%" stop-color="#0f172a"/>
+		</linearGradient>
+		<clipPath id="r"><rect width="64" height="64" rx="15"/></clipPath>
+	</defs>
+	<!-- ダークネイビーのグラデーション背景 -->
+	<rect width="64" height="64" rx="15" fill="url(#bg)"/>
+	<!-- 奥行き用のハイライト -->
+	<g clip-path="url(#r)">
+		<circle cx="52" cy="62" r="46" fill="#334155" opacity="0.45"/>
 	</g>
-	<!-- 帳簿の罫線 -->
-	<g stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round">
-		<path d="M21 47 H43"/>
+	<!-- ゴールドの¥マーク -->
+	<g stroke="#fbbf24" stroke-width="5" stroke-linecap="round" fill="none">
+		<path d="M21.5 15 L32 30 L42.5 15"/>
+		<path d="M32 30 V49"/>
+		<path d="M22.5 35.5 H41.5"/>
+		<path d="M22.5 42.5 H41.5"/>
 	</g>
 </svg>
