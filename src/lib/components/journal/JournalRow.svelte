@@ -646,7 +646,7 @@
 		isFlashing && 'animate-flash',
 		!validation.isValid &&
 			(!isEditing || journal.lines.some((l) => l.amount > 0)) &&
-			'border-destructive'
+			'border-destructive bg-destructive/5'
 	)}
 >
 	<!-- メインコンテンツ -->

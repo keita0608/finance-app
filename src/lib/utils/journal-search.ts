@@ -23,6 +23,8 @@ export interface SearchCriteria {
 	date?: string;
 	/** 月日（MM-DD形式、年度内検索用） */
 	monthDay?: string;
+	/** ★マーク付きのみ */
+	starred?: boolean;
 }
 
 /**
@@ -65,6 +67,12 @@ export function parseSearchQuery(query: string, accounts: Account[]): SearchCrit
 	}
 
 	for (const token of tokens) {
+		// ★マーク付きのみ（★ または ☆）
+		if (token === '★' || token === '☆') {
+			criteria.starred = true;
+			continue;
+		}
+
 		// YYYY-MM-DD（完全な日付）
 		if (/^\d{4}-\d{2}-\d{2}$/.test(token)) {
 			criteria.date = token;
@@ -180,6 +188,9 @@ export function parseSearchQuery(query: string, accounts: Account[]): SearchCrit
  */
 export function filterJournals(journals: JournalEntry[], criteria: SearchCriteria): JournalEntry[] {
 	return journals.filter((journal) => {
+		// ★マーク付きのみ
+		if (criteria.starred && !journal.starred) return false;
+
 		// テキスト検索（摘要・取引先）- すべてのテキストに一致する必要がある
 		if (criteria.text.length > 0) {
 			const descLower = journal.description.toLowerCase();

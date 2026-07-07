@@ -147,6 +147,9 @@
 				<div class="rounded-md border bg-muted/50 px-3 py-2 font-mono text-sm break-all">
 					{generatedName}
 				</div>
+				<p class="text-xs text-muted-foreground">
+					ファイル名は「日付_書類種別_摘要_金額_取引先」から自動生成されます（電帳法の検索要件対応）
+				</p>
 			</div>
 		</div>
 

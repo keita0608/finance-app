@@ -62,6 +62,11 @@
 				<span class="flex-1">月日</span>
 				<code class="rounded bg-muted px-1.5 py-0.5 text-xs">10/13</code>
 			</div>
+			<div class="flex items-center gap-2">
+				<span class="w-5 text-center text-muted-foreground">★</span>
+				<span class="flex-1">★マーク付きのみ</span>
+				<code class="rounded bg-muted px-1.5 py-0.5 text-xs">★</code>
+			</div>
 		</div>
 
 		<div class="border-t pt-2">

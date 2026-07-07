@@ -3,7 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { Plus, Search, X, Download } from '@lucide/svelte';
+	import { Plus, Search, Star, X, Download } from '@lucide/svelte';
 	import JournalRow from '$lib/components/journal/JournalRow.svelte';
 	import SearchHelp from '$lib/components/journal/SearchHelp.svelte';
 	import type { JournalEntry, Account, Vendor } from '$lib/types';
@@ -54,6 +54,7 @@
 	let flashingJournalId = $state<string | null>(null); // フラッシュ表示中の仕訳ID
 	let isInitialized = $state(false); // 初期化完了フラグ
 	let searchQuery = $state(''); // 検索クエリ
+	let starredOnly = $state(false); // ★マーク付きのみ表示
 
 	// 検索中かどうか
 	const isSearching = $derived(!isEmptyQuery(searchQuery));
@@ -62,11 +63,17 @@
 	// 検索中は全年度から検索、通常時は選択年度のみ
 	const filteredJournals = $derived.by(() => {
 		const query = searchQuery;
+		let result: JournalEntry[];
 		if (isEmptyQuery(query)) {
-			return journals;
+			result = journals;
+		} else {
+			const criteria = parseSearchQuery(query, accounts);
+			result = filterJournals(allJournals, criteria);
 		}
-		const criteria = parseSearchQuery(query, accounts);
-		return filterJournals(allJournals, criteria);
+		if (starredOnly) {
+			result = result.filter((j) => j.starred);
+		}
+		return result;
 	});
 
 	// 仕訳をソート（編集中は常に上、それ以外は日付降順）
@@ -384,6 +391,7 @@
 	// 検索をクリア
 	function clearSearch() {
 		searchQuery = '';
+		starredOnly = false;
 	}
 
 	// CSV エクスポート
@@ -460,7 +468,14 @@
 				<p class="text-sm text-muted-foreground">{fiscalYear.selectedYear}年度</p>
 			</div>
 			<div class="flex items-center gap-2">
-				<Button variant="outline" onclick={exportCSV} disabled={filteredJournals.length === 0}>
+				<Button
+					variant="outline"
+					onclick={exportCSV}
+					disabled={filteredJournals.length === 0}
+					title={filteredJournals.length === 0
+						? 'エクスポートできる仕訳がありません'
+						: '表示中の仕訳をCSV出力'}
+				>
 					<Download class="mr-2 size-4" />
 					CSV
 				</Button>
@@ -492,6 +507,15 @@
 					</button>
 				{/if}
 			</div>
+			<Button
+				variant={starredOnly ? 'default' : 'outline'}
+				size="icon"
+				onclick={() => (starredOnly = !starredOnly)}
+				title={starredOnly ? '★フィルターを解除' : '★マーク付きのみ表示'}
+			>
+				<Star class="size-4 {starredOnly ? 'fill-current' : ''}" />
+				<span class="sr-only">★マーク付きのみ表示</span>
+			</Button>
 			<SearchHelp />
 		</div>
 	</div>
@@ -536,7 +560,11 @@
 				</div>
 				<h3 class="mt-4 text-lg font-semibold">検索結果がありません</h3>
 				<p class="mt-2 mb-4 text-sm text-muted-foreground">
-					検索条件に一致する仕訳が見つかりませんでした
+					{#if starredOnly && !isSearching}
+						★マーク付きの仕訳がありません
+					{:else}
+						検索条件に一致する仕訳が見つかりませんでした
+					{/if}
 				</p>
 				<Button variant="outline" onclick={clearSearch}>
 					<X class="mr-2 size-4" />
