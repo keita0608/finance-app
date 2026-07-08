@@ -115,6 +115,7 @@ export interface Account {
 	businessRatioEnabled?: boolean; // 家事按分対象かどうか
 	defaultBusinessRatio?: number; // デフォルト事業割合（0-100）
 	isFavorite?: boolean; // お気に入り（科目選択ダイアログの上部に表示）
+	evidenceOptional?: boolean; // 証憑不要科目（公共交通機関など。未添付ハイライトの対象外）
 }
 
 /**

@@ -158,6 +158,15 @@
 												/>
 											</button>
 										{/if}
+										<button
+											type="button"
+											class="rounded p-0.5 text-muted-foreground/50 hover:bg-slate-200 hover:text-foreground dark:hover:bg-slate-600"
+											onclick={() => openEditDialog(account)}
+											title="設定（税区分・証憑不要など）"
+										>
+											<Pencil class="size-3" />
+											<span class="sr-only">設定</span>
+										</button>
 									</div>
 								{:else}
 									<div
