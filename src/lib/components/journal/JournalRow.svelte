@@ -77,15 +77,15 @@
 	const creditLines = $derived(journal.lines.filter((l) => l.type === 'credit'));
 
 	// 証憑未添付の警告（経費仕訳なのに証跡ステータスが「なし」）
+	// 証憑不要科目（公共交通機関など evidenceOptional）は対象外
 	const needsEvidence = $derived(
 		journal.evidenceStatus === 'none' &&
 			journal.attachments.length === 0 &&
-			journal.lines.some(
-				(l) =>
-					l.type === 'debit' &&
-					l.amount > 0 &&
-					accounts.find((a) => a.code === l.accountCode)?.type === 'expense'
-			)
+			journal.lines.some((l) => {
+				if (l.type !== 'debit' || l.amount <= 0) return false;
+				const account = accounts.find((a) => a.code === l.accountCode);
+				return account?.type === 'expense' && !account.evidenceOptional;
+			})
 	);
 
 	// 家事按分の状態

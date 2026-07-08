@@ -6,7 +6,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Switch from '$lib/components/ui/switch/index.js';
 	import * as Checkbox from '$lib/components/ui/checkbox/index.js';
-	import { Percent } from '@lucide/svelte';
+	import { Percent, Receipt } from '@lucide/svelte';
 	import type { Account, AccountType, TaxCategory } from '$lib/types';
 	import { AccountTypeLabels, TaxCategoryLabels } from '$lib/types';
 	import {
@@ -46,6 +46,7 @@
 	let formBusinessRatioEnabled = $state(false);
 	let formDefaultBusinessRatio = $state(30);
 	let formDefaultTaxCategory = $state<TaxCategory | undefined>(undefined);
+	let formEvidenceOptional = $state(false);
 
 	// 同期確認ダイアログ
 	let syncConfirmDialogOpen = $state(false);
@@ -67,12 +68,14 @@
 				formBusinessRatioEnabled = editingAccount.businessRatioEnabled ?? false;
 				formDefaultBusinessRatio = editingAccount.defaultBusinessRatio ?? 30;
 				formDefaultTaxCategory = editingAccount.defaultTaxCategory;
+				formEvidenceOptional = editingAccount.evidenceOptional ?? false;
 			} else {
 				formName = '';
 				formType = 'expense';
 				formBusinessRatioEnabled = false;
 				formDefaultBusinessRatio = 30;
 				formDefaultTaxCategory = 'purchase_10';
+				formEvidenceOptional = false;
 				generateNextCode('expense').then((code) => (formCode = code));
 			}
 			formError = '';
@@ -114,14 +117,16 @@
 					? {
 							businessRatioEnabled: formBusinessRatioEnabled,
 							defaultBusinessRatio: formBusinessRatioEnabled ? formDefaultBusinessRatio : undefined,
-							defaultTaxCategory: formDefaultTaxCategory
+							defaultTaxCategory: formDefaultTaxCategory,
+							evidenceOptional: formEvidenceOptional
 						}
 					: {
 							name: formName.trim(),
 							type: formType,
 							businessRatioEnabled: formBusinessRatioEnabled,
 							defaultBusinessRatio: formBusinessRatioEnabled ? formDefaultBusinessRatio : undefined,
-							defaultTaxCategory: formDefaultTaxCategory
+							defaultTaxCategory: formDefaultTaxCategory,
+							evidenceOptional: formEvidenceOptional
 						};
 
 				const taxCategoryChanged =
@@ -156,7 +161,8 @@
 					type: formType,
 					businessRatioEnabled: formBusinessRatioEnabled,
 					defaultBusinessRatio: formBusinessRatioEnabled ? formDefaultBusinessRatio : undefined,
-					defaultTaxCategory: formDefaultTaxCategory
+					defaultTaxCategory: formDefaultTaxCategory,
+					evidenceOptional: formEvidenceOptional
 				});
 			}
 			open = false;
@@ -301,6 +307,24 @@
 							仕訳入力時にこの割合が初期値として設定されます
 						</p>
 					{/if}
+				</div>
+
+				<!-- 証憑不要科目（費用科目のみ） -->
+				<div class="rounded-md border bg-muted/30 p-3">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<Receipt class="size-4 text-slate-500" />
+							<Label for="evidenceOptional" class="text-sm font-medium">証憑不要科目</Label>
+						</div>
+						<Switch.Root
+							id="evidenceOptional"
+							checked={formEvidenceOptional}
+							onCheckedChange={(v) => (formEvidenceOptional = v)}
+						/>
+					</div>
+					<p class="mt-1 text-xs text-muted-foreground">
+						電車・バスなど領収書が発行されない取引の科目でオンにすると、証憑未添付のハイライト対象から除外されます
+					</p>
 				</div>
 			{/if}
 
