@@ -6,6 +6,8 @@
 	import { Plus, Search, Star, X, Download } from '@lucide/svelte';
 	import JournalRow from '$lib/components/journal/JournalRow.svelte';
 	import SearchHelp from '$lib/components/journal/SearchHelp.svelte';
+	import AiChatPanel from '$lib/components/ai/AiChatPanel.svelte';
+	import { suggestionToJournalData, type SuggestedJournal } from '$lib/ai/assistant';
 	import type { JournalEntry, Account, Vendor } from '$lib/types';
 	import {
 		initializeDatabase,
@@ -262,6 +264,23 @@
 	}
 
 	// 新規仕訳の追加
+	// AIアシスタントの仕訳提案から仕訳を作成
+	async function handleAiCreateJournal(suggestion: SuggestedJournal) {
+		const data = suggestionToJournalData(suggestion, accounts);
+		const newId = await addJournal(data);
+		const newJournal = await getJournalById(newId);
+		if (newJournal) {
+			searchQuery = '';
+			flashingJournalId = newId;
+			journals = sortJournals([newJournal, ...journals.filter((j) => j.id !== newId)]);
+			refreshAllJournals();
+			await refreshAvailableYears();
+			setTimeout(() => {
+				if (flashingJournalId === newId) flashingJournalId = null;
+			}, 2000);
+		}
+	}
+
 	async function handleAddJournal() {
 		// 検索フィルタを解除（新規仕訳が見えるように）
 		searchQuery = '';
@@ -596,6 +615,9 @@
 		</div>
 	{/if}
 </div>
+
+<!-- AIアシスタント チャットパネル -->
+<AiChatPanel {accounts} oncreatejournal={handleAiCreateJournal} />
 
 <!-- 削除確認ダイアログ -->
 <Dialog.Root bind:open={deleteDialogOpen}>

@@ -58,6 +58,8 @@
 		"vitest-browser-svelte": "^2.0.1"
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "^0.110.0",
+		"@google/genai": "^2.10.0",
 		"dexie": "^4.2.1",
 		"firebase": "^12.12.1",
 		"jszip": "^3.10.1",

@@ -127,6 +127,32 @@
 		</ul>
 	</HelpSection>
 
+	<HelpSection title="AIアシスタント（仕訳の相談）">
+		<p>仕訳帳の右下の✨ボタンからAIチャットパネルを開き、仕訳の相談ができます。</p>
+		<ul class="mt-2 ml-4 list-disc space-y-1">
+			<li>「打ち合わせのカフェ代1,200円はどう仕分ける？」のように自然な日本語で質問できます</li>
+			<li>AIが仕訳を提案した場合、「この仕訳を作成」ボタンでそのまま仕訳帳に登録できます</li>
+			<li>勘定科目マスタ（お使いの科目一覧）を参照して回答します</li>
+			<li>家事按分や源泉徴収などの複合仕訳にも対応します</li>
+		</ul>
+		<h3 class="mt-4 mb-2 text-sm font-semibold">事前準備</h3>
+		<p>
+			設定ページ（/settings）の「AIアシスタント」で、使用するAI（Claude または
+			Gemini）と自分のAPIキーを登録してください。
+		</p>
+		<HelpTable
+			headers={['項目', '内容']}
+			rows={[
+				['対応AI', 'Claude（Anthropic）/ Gemini（Google）切り替え式'],
+				['APIキー', '各自で取得（利用料金はキーの持ち主に請求）'],
+				['キーの保存先', '自分のアカウント設定のみ（他ユーザーからは見えない）']
+			]}
+		/>
+		<HelpNote type="warning">
+			<p>AIの回答は参考情報です。税務上の最終判断は税理士・税務署に確認してください。</p>
+		</HelpNote>
+	</HelpSection>
+
 	<HelpSection title="複合仕訳">
 		<p>1つの取引で借方または貸方が複数行ある場合（家事按分、源泉徴収など）に対応しています。</p>
 		<p class="mt-2"><strong>例：携帯電話代の家事按分（80%事業使用）</strong></p>
