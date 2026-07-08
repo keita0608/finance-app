@@ -263,7 +263,19 @@ export type SettingsKey =
 	| 'blueReturnDeduction'
 	| 'inventoryStart'
 	| 'inventoryEnd'
-	| 'dismissedUpgradeNotice';
+	| 'dismissedUpgradeNotice'
+	| 'aiSettings';
+
+/**
+ * AIアシスタント設定
+ */
+export type AiProvider = 'claude' | 'gemini';
+
+export interface AiSettings {
+	provider: AiProvider;
+	claudeApiKey?: string;
+	geminiApiKey?: string;
+}
 
 // BusinessInfoはblue-return-types.tsで定義（循環参照を避けるため、ここではanyを使用）
 // 実際の型は $lib/types/blue-return-types.ts の BusinessInfo を参照
@@ -280,6 +292,8 @@ export type SettingsValueMap = {
 	inventoryEnd: number;
 	/** 非表示にしたアップグレード通知のバージョン（例: "0.4.0"） */
 	dismissedUpgradeNotice: string;
+	/** AIアシスタント設定（プロバイダ・APIキー） */
+	aiSettings: AiSettings;
 };
 
 export interface Settings {
