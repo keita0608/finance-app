@@ -83,6 +83,38 @@ ${accountList}
 }
 
 /**
+ * 過去の仕訳からAI用の参考コンテキストを構築（新しい順・最大limit件）
+ *
+ * ユーザーの仕訳パターン（科目の使い方・摘要の書き方）をAIに学習させるために
+ * リクエストごとに注入する。キャッシュ対象の安定プレフィックス（システムプロンプト）
+ * とは分離して渡すこと。
+ */
+export function buildJournalContext(
+	journals: JournalEntry[],
+	accounts: Account[],
+	limit = 100
+): string {
+	if (journals.length === 0) return '';
+	const nameOf = (code: string) => accounts.find((a) => a.code === code)?.name ?? code;
+	const fmtLines = (j: JournalEntry, type: 'debit' | 'credit') =>
+		j.lines
+			.filter((l) => l.type === type && l.accountCode)
+			.map((l) => `${nameOf(l.accountCode)}${l.amount.toLocaleString()}`)
+			.join('+');
+
+	const rows = [...journals]
+		.sort((a, b) => b.date.localeCompare(a.date))
+		.slice(0, limit)
+		.map((j) => `${j.date}|${j.description}|${j.vendor}|借:${fmtLines(j, 'debit')}|貸:${fmtLines(j, 'credit')}`);
+
+	return `## このユーザーの過去の仕訳例（新しい順・最大${limit}件）
+同様の取引を相談されたら、過去の仕訳と同じ勘定科目・摘要のパターンで提案してください。
+形式: 日付|摘要|取引先|借方|貸方
+
+${rows.join('\n')}`;
+}
+
+/**
  * メッセージを送信してストリーミングで応答を受け取る
  *
  * @returns 応答の全文
@@ -91,20 +123,22 @@ export async function sendChat(options: {
 	provider: AiProvider;
 	apiKey: string;
 	systemPrompt: string;
+	journalContext?: string;
 	messages: ChatMessage[];
 	onDelta: (text: string) => void;
 	signal?: AbortSignal;
 }): Promise<string> {
-	const { provider, apiKey, systemPrompt, messages, onDelta, signal } = options;
+	const { provider, apiKey, systemPrompt, journalContext, messages, onDelta, signal } = options;
 	if (provider === 'claude') {
-		return sendClaude(apiKey, systemPrompt, messages, onDelta, signal);
+		return sendClaude(apiKey, systemPrompt, journalContext, messages, onDelta, signal);
 	}
-	return sendGemini(apiKey, systemPrompt, messages, onDelta, signal);
+	return sendGemini(apiKey, systemPrompt, journalContext, messages, onDelta, signal);
 }
 
 async function sendClaude(
 	apiKey: string,
 	systemPrompt: string,
+	journalContext: string | undefined,
 	messages: ChatMessage[],
 	onDelta: (text: string) => void,
 	signal?: AbortSignal
@@ -114,18 +148,24 @@ async function sendClaude(
 		dangerouslyAllowBrowser: true // BYOK: ユーザー自身のキーをユーザーのブラウザで使用
 	});
 
+	// 安定部分（ルール＋科目リスト）はキャッシュ、過去仕訳（都度変化）はキャッシュ境界の後ろに置く
+	const system: Anthropic.TextBlockParam[] = [
+		{
+			type: 'text',
+			text: systemPrompt,
+			cache_control: { type: 'ephemeral' }
+		}
+	];
+	if (journalContext) {
+		system.push({ type: 'text', text: journalContext });
+	}
+
 	const stream = client.messages.stream(
 		{
 			model: CLAUDE_MODEL,
 			max_tokens: 16000,
 			thinking: { type: 'adaptive' },
-			system: [
-				{
-					type: 'text',
-					text: systemPrompt,
-					cache_control: { type: 'ephemeral' } // 科目リスト等の共通プレフィックスをキャッシュ
-				}
-			],
+			system,
 			messages: messages.map((m) => ({ role: m.role, content: m.content }))
 		},
 		{ signal }
@@ -146,6 +186,7 @@ async function sendClaude(
 async function sendGemini(
 	apiKey: string,
 	systemPrompt: string,
+	journalContext: string | undefined,
 	messages: ChatMessage[],
 	onDelta: (text: string) => void,
 	signal?: AbortSignal
@@ -157,11 +198,15 @@ async function sendGemini(
 		parts: [{ text: m.content }]
 	}));
 
+	const systemInstruction = journalContext
+		? `${systemPrompt}\n\n${journalContext}`
+		: systemPrompt;
+
 	const stream = await ai.models.generateContentStream({
 		model: GEMINI_MODEL,
 		contents,
 		config: {
-			systemInstruction: systemPrompt,
+			systemInstruction,
 			abortSignal: signal
 		}
 	});

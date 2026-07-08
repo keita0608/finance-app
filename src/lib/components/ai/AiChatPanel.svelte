@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { base } from '$app/paths';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
@@ -7,24 +7,26 @@
 	import { getSetting } from '$lib/db';
 	import {
 		buildSystemPrompt,
+		buildJournalContext,
 		sendChat,
 		extractSuggestedJournals,
 		stripJournalBlocks,
 		type ChatMessage,
 		type SuggestedJournal
 	} from '$lib/ai/assistant';
-	import type { Account, AiSettings } from '$lib/types';
+	import type { Account, AiSettings, JournalEntry } from '$lib/types';
 	import { TaxCategoryLabels, type TaxCategory } from '$lib/types';
 	import { toast } from 'svelte-sonner';
 
 	interface Props {
 		accounts: Account[];
+		journals?: JournalEntry[];
 		oncreatejournal: (suggestion: SuggestedJournal) => Promise<void>;
+		open?: boolean;
 	}
 
-	let { accounts, oncreatejournal }: Props = $props();
+	let { accounts, journals = [], oncreatejournal, open = $bindable(false) }: Props = $props();
 
-	let open = $state(false);
 	let aiSettings = $state<AiSettings | null>(null);
 	let settingsLoaded = $state(false);
 	let input = $state('');
@@ -44,13 +46,30 @@
 
 	const providerLabel = $derived(aiSettings?.provider === 'gemini' ? 'Gemini' : 'Claude');
 
+	async function loadSettings() {
+		if (settingsLoaded) return;
+		aiSettings = (await getSetting('aiSettings')) ?? null;
+		settingsLoaded = true;
+	}
+
 	async function togglePanel() {
 		open = !open;
-		if (open && !settingsLoaded) {
-			aiSettings = (await getSetting('aiSettings')) ?? null;
-			settingsLoaded = true;
-		}
+		localStorage.setItem('aiPanelOpen', String(open));
+		if (open) await loadSettings();
 	}
+
+	function closePanel() {
+		open = false;
+		localStorage.setItem('aiPanelOpen', 'false');
+	}
+
+	onMount(() => {
+		// PC画面ではデフォルトで表示（ユーザーが閉じた場合はその状態を記憶）
+		const saved = localStorage.getItem('aiPanelOpen');
+		const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+		open = saved !== null ? saved === 'true' : isDesktop;
+		if (open) loadSettings();
+	});
 
 	async function scrollToBottom() {
 		await tick();
@@ -71,10 +90,12 @@
 		try {
 			const today = new Date().toISOString().substring(0, 10);
 			const systemPrompt = buildSystemPrompt(accounts, today);
+			const journalContext = buildJournalContext(journals, accounts);
 			const full = await sendChat({
 				provider: aiSettings.provider,
 				apiKey: activeApiKey,
 				systemPrompt,
+				journalContext,
 				messages,
 				onDelta: (delta) => {
 					streamingText += delta;
@@ -155,7 +176,7 @@
 				<p class="text-sm font-semibold">AIアシスタント</p>
 				<p class="text-xs text-muted-foreground">仕訳の相談（{providerLabel}）</p>
 			</div>
-			<Button variant="ghost" size="icon" class="size-8" onclick={() => (open = false)}>
+			<Button variant="ghost" size="icon" class="size-8" onclick={closePanel}>
 				<X class="size-4" />
 				<span class="sr-only">閉じる</span>
 			</Button>

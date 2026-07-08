@@ -76,6 +76,18 @@
 	const debitLines = $derived(journal.lines.filter((l) => l.type === 'debit'));
 	const creditLines = $derived(journal.lines.filter((l) => l.type === 'credit'));
 
+	// 証憑未添付の警告（経費仕訳なのに証跡ステータスが「なし」）
+	const needsEvidence = $derived(
+		journal.evidenceStatus === 'none' &&
+			journal.attachments.length === 0 &&
+			journal.lines.some(
+				(l) =>
+					l.type === 'debit' &&
+					l.amount > 0 &&
+					accounts.find((a) => a.code === l.accountCode)?.type === 'expense'
+			)
+	);
+
 	// 家事按分の状態
 	const businessRatioTarget = $derived(getBusinessRatioTargetLine(journal.lines, accounts));
 	const isBusinessRatioApplied = $derived(hasBusinessRatioApplied(journal.lines));
@@ -644,6 +656,10 @@
 		'flex flex-col gap-4 rounded-lg border bg-card p-4 shadow-sm transition-all journal:flex-row',
 		isEditing && 'border-primary ring-2 ring-primary/20',
 		isFlashing && 'animate-flash',
+		needsEvidence &&
+			validation.isValid &&
+			!isEditing &&
+			'border-amber-400 bg-amber-50/50 dark:border-amber-600 dark:bg-amber-950/20',
 		!validation.isValid &&
 			(!isEditing || journal.lines.some((l) => l.amount > 0)) &&
 			'border-destructive bg-destructive/5'

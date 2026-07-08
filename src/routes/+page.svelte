@@ -57,6 +57,7 @@
 	let isInitialized = $state(false); // 初期化完了フラグ
 	let searchQuery = $state(''); // 検索クエリ
 	let starredOnly = $state(false); // ★マーク付きのみ表示
+	let aiPanelOpen = $state(false); // AIチャットパネルの開閉（パネル側で初期化）
 
 	// 検索中かどうか
 	const isSearching = $derived(!isEmptyQuery(searchQuery));
@@ -476,7 +477,7 @@
 	}
 </script>
 
-<div class="space-y-4">
+<div class="space-y-4 transition-[margin] duration-200 {aiPanelOpen ? 'lg:mr-96' : ''}">
 	<!-- ヘッダー + 検索ボックス（固定） -->
 	<div
 		class="sticky top-14 z-10 -mx-4 space-y-3 border-b bg-background px-4 pt-4 pb-3 group-has-data-[collapsible=icon]/sidebar-wrapper:top-12"
@@ -617,7 +618,12 @@
 </div>
 
 <!-- AIアシスタント チャットパネル -->
-<AiChatPanel {accounts} oncreatejournal={handleAiCreateJournal} />
+<AiChatPanel
+	{accounts}
+	journals={allJournals}
+	oncreatejournal={handleAiCreateJournal}
+	bind:open={aiPanelOpen}
+/>
 
 <!-- 削除確認ダイアログ -->
 <Dialog.Root bind:open={deleteDialogOpen}>
