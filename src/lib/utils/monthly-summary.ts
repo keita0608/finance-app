@@ -34,10 +34,6 @@ const SALES_CODES = ['4001']; // 売上高
  */
 const PURCHASE_CODES = ['5001']; // 仕入高
 
-/**
- * 雑収入に該当する勘定科目コード
- */
-const MISC_INCOME_CODES = ['4002', '4003']; // 受取利息、雑収入など
 
 /**
  * 地代家賃に該当する勘定科目コード
@@ -246,6 +242,10 @@ export function generateAccountYearlyTotals(
 
 /**
  * 雑収入の年間合計を計算
+ *
+ * 売上高（SALES_CODES）以外のすべての収益科目を雑収入として集計する。
+ * 損益計算書（profit-loss.ts）の otherRevenue と同じ範囲にすることで、
+ * 決算書1ページ目の売上（収入）金額との整合性を保つ。
  */
 export function calculateMiscIncome(journals: JournalEntry[], accounts: Account[]): number {
 	const accountMap = new Map(accounts.map((a) => [a.code, a]));
@@ -253,8 +253,9 @@ export function calculateMiscIncome(journals: JournalEntry[], accounts: Account[
 
 	for (const journal of journals) {
 		for (const line of journal.lines) {
-			if (MISC_INCOME_CODES.includes(line.accountCode)) {
-				const account = accountMap.get(line.accountCode);
+			const account = accountMap.get(line.accountCode);
+			if (!account) continue;
+			if (account.type === 'revenue' && !SALES_CODES.includes(line.accountCode)) {
 				total += getLineAmount(line, account);
 			}
 		}
