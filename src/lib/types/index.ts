@@ -265,7 +265,8 @@ export type SettingsKey =
 	| 'inventoryStart'
 	| 'inventoryEnd'
 	| 'dismissedUpgradeNotice'
-	| 'aiSettings';
+	| 'aiSettings'
+	| 'journalNamingRules';
 
 /**
  * AIアシスタント設定
@@ -295,6 +296,8 @@ export type SettingsValueMap = {
 	dismissedUpgradeNotice: string;
 	/** AIアシスタント設定（プロバイダ・APIキー） */
 	aiSettings: AiSettings;
+	/** 仕訳ルール（摘要の命名規則。AIアシスタントが従う） */
+	journalNamingRules: string;
 };
 
 export interface Settings {

@@ -37,6 +37,31 @@
 		<p>青色申告決算書に使用する事業者情報（氏名・屋号・住所等）を登録します。</p>
 	</HelpSection>
 
+	<HelpSection title="AIアシスタント">
+		<p>
+			AIアシスタント（Claude /
+			Gemini）のプロバイダとAPIキーを登録します。詳細は「仕訳入力」ヘルプの「AIアシスタント」を参照してください。
+		</p>
+	</HelpSection>
+
+	<HelpSection title="仕訳ルール（摘要の命名規則）">
+		<p>
+			摘要（取引名）の付け方のルールをテキストで管理します。AIアシスタントは仕訳を提案する際にこのルールに従って摘要を作成します。
+		</p>
+		<ul class="mt-2 ml-4 list-disc space-y-1">
+			<li>初期状態では旅費交通費・預金利息・報酬・分割払い・生活費のルールが登録されています</li>
+			<li>新しい取引パターンが発生したら、このテキストに追記して「保存」してください</li>
+			<li>「初期ルールに戻す」で既定値に戻せます</li>
+		</ul>
+		<HelpNote type="info">
+			<p>
+				例（旅費交通費）: <code class="rounded bg-muted px-1 py-0.5 text-xs"
+					>案件：{'{案件番号}'}_{'{内容}'}</code
+				> — 記号は全角で統一し、内容は「在来線乗車分／新幹線代／飛行機代」などの決まった語彙を使います。
+			</p>
+		</HelpNote>
+	</HelpSection>
+
 	<HelpSection title="証憑保存設定（年度別）">
 		<p>
 			証憑PDFの保存先を<strong>年度ごと</strong

@@ -33,6 +33,7 @@
 	const CONTEXT_LIMIT = 20; // APIに送信する直近メッセージ数（コスト抑制）
 
 	let aiSettings = $state<AiSettings | null>(null);
+	let namingRules = $state<string | undefined>(undefined);
 	let settingsLoaded = $state(false);
 	let input = $state('');
 	let isComposing = $state(false);
@@ -70,6 +71,7 @@
 	async function loadSettings() {
 		if (settingsLoaded) return;
 		aiSettings = (await getSetting('aiSettings')) ?? null;
+		namingRules = await getSetting('journalNamingRules');
 		settingsLoaded = true;
 	}
 
@@ -125,7 +127,7 @@
 		abortController = new AbortController();
 		try {
 			const today = new Date().toISOString().substring(0, 10);
-			const systemPrompt = buildSystemPrompt(accounts, today);
+			const systemPrompt = buildSystemPrompt(accounts, today, namingRules);
 			const journalContext = buildJournalContext(journals, accounts);
 			const full = await sendChat({
 				provider: aiSettings.provider,

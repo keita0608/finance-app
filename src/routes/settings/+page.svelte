@@ -1,5 +1,6 @@
 <script lang="ts">
 	import AiSettingsCard from '$lib/components/data/AiSettingsCard.svelte';
+	import NamingRulesCard from '$lib/components/data/NamingRulesCard.svelte';
 	import BusinessInfoCard from '$lib/components/data/BusinessInfoCard.svelte';
 	import CapacityCard from '$lib/components/data/CapacityCard.svelte';
 	import StorageSettingsCard from '$lib/components/data/StorageSettingsCard.svelte';
@@ -79,6 +80,9 @@
 
 	<!-- AIアシスタント設定 -->
 	<AiSettingsCard />
+
+	<!-- 仕訳ルール（摘要の命名規則） -->
+	<NamingRulesCard />
 
 	<!-- 証憑保存先設定 -->
 	<StorageSettingsCard
