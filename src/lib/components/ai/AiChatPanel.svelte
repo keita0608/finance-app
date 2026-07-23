@@ -3,7 +3,7 @@
 	import { base } from '$app/paths';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import { Bot, Loader2, Plus, Send, Sparkles, X } from '@lucide/svelte';
+	import { Bot, Loader2, Plus, Send, Sparkles, Trash2, X } from '@lucide/svelte';
 	import { getSetting } from '$lib/db';
 	import {
 		buildSystemPrompt,
@@ -27,6 +27,11 @@
 
 	let { accounts, journals = [], oncreatejournal, open = $bindable(false) }: Props = $props();
 
+	// チャット履歴の保存キーと上限
+	const HISTORY_KEY = 'aiChatHistory';
+	const HISTORY_LIMIT = 100; // 端末に保存する最大メッセージ数
+	const CONTEXT_LIMIT = 20; // APIに送信する直近メッセージ数（コスト抑制）
+
 	let aiSettings = $state<AiSettings | null>(null);
 	let settingsLoaded = $state(false);
 	let input = $state('');
@@ -36,6 +41,22 @@
 	let messages = $state<ChatMessage[]>([]);
 	let scrollRef = $state<HTMLDivElement | null>(null);
 	let abortController: AbortController | null = null;
+
+	function persistMessages() {
+		try {
+			localStorage.setItem(
+				HISTORY_KEY,
+				JSON.stringify($state.snapshot(messages).slice(-HISTORY_LIMIT))
+			);
+		} catch {
+			// 容量超過等は無視（履歴保存は補助機能のため）
+		}
+	}
+
+	function clearHistory() {
+		messages = [];
+		localStorage.removeItem(HISTORY_KEY);
+	}
 
 	const activeApiKey = $derived.by(() => {
 		if (!aiSettings) return '';
@@ -69,6 +90,20 @@
 		const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
 		open = saved !== null ? saved === 'true' : isDesktop;
 		if (open) loadSettings();
+
+		// チャット履歴を復元
+		try {
+			const savedHistory = localStorage.getItem(HISTORY_KEY);
+			if (savedHistory) {
+				const parsed = JSON.parse(savedHistory);
+				if (Array.isArray(parsed)) {
+					messages = parsed;
+					scrollToBottom();
+				}
+			}
+		} catch {
+			// 壊れた履歴は無視
+		}
 	});
 
 	async function scrollToBottom() {
@@ -82,6 +117,7 @@
 
 		input = '';
 		messages = [...messages, { role: 'user', content: text }];
+		persistMessages();
 		isLoading = true;
 		streamingText = '';
 		await scrollToBottom();
@@ -96,7 +132,8 @@
 				apiKey: activeApiKey,
 				systemPrompt,
 				journalContext,
-				messages,
+				// コスト抑制のため直近のみ送信（履歴表示は全件保持）
+				messages: messages.slice(-CONTEXT_LIMIT),
 				onDelta: (delta) => {
 					streamingText += delta;
 					scrollRef?.scrollTo({ top: scrollRef.scrollHeight });
@@ -112,6 +149,7 @@
 				{ role: 'assistant', content: `⚠️ ${msg}\n\nAPIキーが正しいか設定ページでご確認ください。` }
 			];
 		} finally {
+			persistMessages();
 			isLoading = false;
 			streamingText = '';
 			abortController = null;
@@ -176,6 +214,18 @@
 				<p class="text-sm font-semibold">AIアシスタント</p>
 				<p class="text-xs text-muted-foreground">仕訳の相談（{providerLabel}）</p>
 			</div>
+			{#if messages.length > 0}
+				<Button
+					variant="ghost"
+					size="icon"
+					class="size-8"
+					onclick={clearHistory}
+					title="履歴をクリア"
+				>
+					<Trash2 class="size-4" />
+					<span class="sr-only">履歴をクリア</span>
+				</Button>
+			{/if}
 			<Button variant="ghost" size="icon" class="size-8" onclick={closePanel}>
 				<X class="size-4" />
 				<span class="sr-only">閉じる</span>
