@@ -493,10 +493,13 @@ export function blueReturnSummaryToCsv(data: BlueReturnData): string {
 export function validateBlueReturnData(data: BlueReturnData): string[] {
 	const errors: string[] = [];
 
-	// 月別売上の合計と損益計算書の売上が一致するか
-	if (data.page2.monthlySalesTotal !== data.page1.salesTotal) {
+	// 2ページ目の収入合計（月別売上＋家事消費等＋雑収入）と損益計算書の売上（収入）金額が一致するか
+	// 実際の決算書様式では、2ページ目の「計」は雑収入等を含めて1ページ目の①と一致する
+	const page2IncomeTotal =
+		data.page2.monthlySalesTotal + data.page2.personalConsumption + data.page2.miscIncome;
+	if (page2IncomeTotal !== data.page1.salesTotal) {
 		errors.push(
-			`月別売上合計（${data.page2.monthlySalesTotal}）と損益計算書の売上（${data.page1.salesTotal}）が一致しません`
+			`月別売上合計＋雑収入等（${page2IncomeTotal}）と損益計算書の売上（${data.page1.salesTotal}）が一致しません`
 		);
 	}
 
