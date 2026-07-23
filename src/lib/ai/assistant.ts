@@ -9,6 +9,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from '@google/genai';
 import type { Account, AiProvider, JournalEntry, JournalLine, TaxCategory } from '$lib/types';
+import { DEFAULT_NAMING_RULES } from '$lib/constants/naming-rules';
 import { AccountTypeLabels, TaxCategoryLabels } from '$lib/types';
 
 export interface ChatMessage {
@@ -35,7 +36,11 @@ const GEMINI_MODEL = 'gemini-2.5-flash';
 /**
  * 勘定科目マスタと複式簿記ルールからシステムプロンプトを構築
  */
-export function buildSystemPrompt(accounts: Account[], today: string): string {
+export function buildSystemPrompt(
+	accounts: Account[],
+	today: string,
+	namingRules?: string
+): string {
 	const accountList = accounts
 		.map((a) => {
 			const tax = a.defaultTaxCategory ? `（デフォルト税区分: ${TaxCategoryLabels[a.defaultTaxCategory]}）` : '';
@@ -58,6 +63,9 @@ ${accountList}
 - sales_10: 課税売上10% / sales_8: 課税売上8%
 - purchase_10: 課税仕入10% / purchase_8: 課税仕入8%（軽減税率: 飲食料品など）
 - exempt: 非課税 / out_of_scope: 不課税 / na: 対象外（事業主勘定等）
+
+## 摘要の命名ルール（仕訳提案時は必ず従うこと）
+${namingRules ?? DEFAULT_NAMING_RULES}
 
 ## 個人事業主特有の記帳ルール（重要）
 - **事業用口座の預金利息**: 利子所得（源泉分離課税で完結）であり事業所得ではないため、「受取利息」は使わず「貸方: 事業主借」で記帳する。源泉徴収後の入金額のみを計上し、税額をグロスアップしない
